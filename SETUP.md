@@ -55,6 +55,17 @@ Builds all four projects, copies each one's output DLLs into
 they do with it, or [CLIENT-INSTALL.md](CLIENT-INSTALL.md) for the
 manual/Linux path.
 
+**Publishing it** (what the README's download link points at) is a
+GitHub Release, not the committed copy in the repo tree — a Release
+gives players a clean, single-file download page instead of having to
+browse source code to find the zip:
+```bash
+gh release create v2 ValheimModpack.zip --title "ValheimModpack v2" --notes "..."
+```
+Bump the tag each time (`v2`, `v3`, ...) — `releases/latest/download/...`
+(what the README links to) always resolves to whichever release was
+published most recently, no link to update.
+
 ## 2. Server setup + build
 
 First time, bring the server stack up:

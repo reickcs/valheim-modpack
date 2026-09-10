@@ -1,5 +1,22 @@
 # valheim-modpack
 
+## Just want to play?
+
+1. **[Download ValheimModpack.zip](https://github.com/reickcs/valheim-modpack/releases/latest/download/ValheimModpack.zip)**
+2. Unzip it anywhere
+3. Double-click `install.bat` inside
+
+That's it — it finds your Valheim install, sets up the mod loader, and
+drops everything in. Full details (including the one-time Windows
+security popup you'll see) are in
+[`windows-installer/README.txt`](windows-installer/README.txt), also
+included in the zip.
+
+The server address and password aren't in this repo — you'll get those
+separately from whoever invited you.
+
+---
+
 A small Valheim BepInEx modpack — **built from source, not downloaded from
 Thunderstore.** Every mod here is vendored from its own upstream GitHub
 repo (each under its own license, see below) and compiled by this repo's
