@@ -2,18 +2,52 @@
 
 ## Just want to play?
 
-1. **[Download ValheimModpack.zip](https://github.com/reickcs/valheim-modpack/releases/latest/download/ValheimModpack.zip)**
-2. Unzip it anywhere
-3. Double-click `install.bat` inside
+**[Download ValheimModpack.zip](https://github.com/reickcs/valheim-modpack/releases/latest/download/ValheimModpack.zip)**
+and unzip it anywhere. From there, two ways to actually install it —
+pick whichever you're comfortable with, both end up identical:
 
-That's it — it finds your Valheim install, sets up the mod loader, and
-drops everything in. Full details (including the one-time Windows
-security popup you'll see) are in
-[`windows-installer/README.txt`](windows-installer/README.txt), also
-included in the zip.
+### Option 1: Run the script (easiest)
 
-The server address and password aren't in this repo — you'll get those
-separately from whoever invited you.
+1. Double-click `install.bat` inside the unzipped folder.
+2. First time only, Windows will likely show a **"Windows protected
+   your PC"** SmartScreen popup — click **More info → Run anyway**.
+   This happens because the script isn't code-signed, not because
+   anything's wrong; it's expected.
+3. Watch the black window until it says **Install complete**, then
+   press Enter to close it.
+4. Launch Valheim through Steam normally — no special launch options.
+
+If you'd rather run it from a terminal and see exactly what's
+happening instead of double-clicking, that's the same script:
+```powershell
+powershell -ExecutionPolicy Bypass -File install.ps1
+```
+Either way, `install.ps1` does the actual work: finds your Valheim
+install automatically, installs BepInEx (the mod loader), and copies
+in the four plugins bundled in the zip. Safe to re-run if anything
+goes wrong partway through.
+
+### Option 2: Do it by hand
+
+If you'd rather not run a script at all:
+
+1. Find your Valheim install folder — in Steam, right-click **Valheim
+   → Manage → Browse local files**.
+2. Install BepInEx yourself: download
+   [`denikson-BepInExPack_Valheim`](https://thunderstore.io/c/valheim/p/denikson/BepInExPack_Valheim/)
+   from Thunderstore, open the zip, and copy `winhttp.dll`,
+   `doorstop_config.ini`, and the whole `BepInEx/` folder into your
+   Valheim install folder.
+3. From `ValheimModpack.zip`, open the `plugins/` folder and copy each
+   of the four subfolders inside it into
+   `<your Valheim folder>/BepInEx/plugins/`.
+4. Launch Valheim through Steam normally.
+
+### Either way
+
+Once you're in-game: **Join Game → Direct Connect**, using the server
+address and password from whoever invited you — that's never in this
+repo, you'll get it separately (see below).
 
 ---
 
@@ -48,6 +82,7 @@ matching `.cfg` file, no drift.
 |---|---|
 | [`scripts/build-client.ps1`](scripts/build-client.ps1) | Builds all four mods, bundles them, rebuilds `ValheimModpack.zip`. No server access needed. |
 | [`scripts/build-server.sh`](scripts/build-server.sh) | Builds the two server-side mods, deploys over SSH, restarts, verifies. Needs `REMOTE_HOST`. |
+| [`scripts/update-server-game.sh`](scripts/update-server-game.sh) / [`.ps1`](scripts/update-server-game.ps1) | Checks for and applies a *base game* update on the server (deliberately pinned, not automatic — see `docker-compose.yml`). No-ops cleanly if nothing's newer. |
 | [`modpack.yaml`](modpack.yaml) | Every mod: source repo, license, why it's here, what was stripped/fixed to build it. Source of truth. |
 | [`docker-compose.yml`](docker-compose.yml) + [`.env.example`](.env.example) | The server stack. |
 | [`ValheimQoL-source/`](ValheimQoL-source/) | Hand-written QoL plugin — Harmony patches over decompiled `assembly_valheim.dll`, never guessed from memory. |

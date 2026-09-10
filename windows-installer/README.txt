@@ -7,8 +7,9 @@ HOW TO INSTALL
    one-time ack.)
 
 2. Double-click install.bat. A black window will open and do everything:
-   find your Valheim install, install the mod loader, download the pinned
-   mods, and drop in the custom plugin. Takes a minute or two.
+   find your Valheim install, download and install the mod loader
+   (BepInEx), and copy in this pack's mods (already bundled in this
+   folder, not downloaded). Takes a minute or two.
 
 3. If Windows SmartScreen pops up ("Windows protected your PC") click
    "More info" -> "Run anyway". This happens because the script isn't
