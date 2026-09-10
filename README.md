@@ -29,6 +29,8 @@ matching `.cfg` file, no drift.
 
 | Path | What |
 |---|---|
+| [`scripts/build-client.ps1`](scripts/build-client.ps1) | Builds all four mods, bundles them, rebuilds `ValheimModpack.zip`. No server access needed. |
+| [`scripts/build-server.sh`](scripts/build-server.sh) | Builds the two server-side mods, deploys over SSH, restarts, verifies. Needs `REMOTE_HOST`. |
 | [`modpack.yaml`](modpack.yaml) | Every mod: source repo, license, why it's here, what was stripped/fixed to build it. Source of truth. |
 | [`docker-compose.yml`](docker-compose.yml) + [`.env.example`](.env.example) | The server stack. |
 | [`ValheimQoL-source/`](ValheimQoL-source/) | Hand-written QoL plugin — Harmony patches over decompiled `assembly_valheim.dll`, never guessed from memory. |
