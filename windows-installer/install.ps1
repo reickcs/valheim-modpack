@@ -1,12 +1,14 @@
 # Client-side installer for this modpack. Finds your Valheim install,
-# installs BepInEx + the pinned mod list, drops in the custom ValheimQoL
-# plugin bundled in this folder, and verifies the result. Safe to re-run
-# if something goes wrong partway through.
+# installs BepInEx, and copies in the plugins bundled in this folder's
+# plugins\ subdirectory. Safe to re-run if something goes wrong partway
+# through.
 #
-# Server admins: this $Mods list is hand-copied from ../modpack.yaml
-# (server mods + client_only_mods combined) because PowerShell has no
-# built-in YAML parser. If you change modpack.yaml, update this list to
-# match and rebuild ValheimModpack.zip -- see ../SETUP.md.
+# Every plugin here is built from source in this repo (see ../SETUP.md) --
+# nothing is downloaded from Thunderstore except BepInEx itself, which is
+# infrastructure (the mod loader), not one of this pack's mods.
+# Server admins: after any source change, rebuild the plugin(s), re-copy
+# the DLL(s) into plugins\<namespace-name>\, and rebuild ValheimModpack.zip
+# -- see ../SETUP.md part 4.
 
 $ErrorActionPreference = "Stop"
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
@@ -16,18 +18,6 @@ $ApiBase = "https://thunderstore.io/api/experimental/package"
 $Headers = @{ "User-Agent" = "curl/8.5.0" }
 
 $BepInExPack = @{ ns = "denikson"; name = "BepInExPack_Valheim"; ver = "5.4.2333" }
-
-# Exact pinned modpack (mirrors modpack.yaml + its resolved dependencies).
-# Kept as flat data here on purpose -- no dependency-resolution logic to
-# fail on someone else's machine.
-$Mods = @(
-    @{ ns = "Azumatt";    name = "AzuCraftyBoxes";                  ver = "1.8.15" }
-    @{ ns = "Smoothbrain";name = "ServerCharacters";                 ver = "1.4.16" }
-    @{ ns = "Advize";     name = "PlantEasily";                      ver = "2.1.1"  }
-    @{ ns = "shudnal";    name = "ConfigurationManager";             ver = "1.1.16" }
-    @{ ns = "ValheimModding"; name = "YamlDotNet";                   ver = "16.3.0" }
-    @{ ns = "shudnal";    name = "ConditionalConfigSync";            ver = "1.0.4"  }
-)
 
 function Write-Step($msg) { Write-Host ""; Write-Host "==> $msg" -ForegroundColor Cyan }
 function Write-Ok($msg)   { Write-Host "    OK: $msg" -ForegroundColor Green }
@@ -99,7 +89,7 @@ function Install-Package($ns, $name, $ver, $destRoot) {
     Expand-Archive -Path $zipPath -DestinationPath $dest -Force
 }
 
-Write-Step "Installing BepInEx"
+Write-Step "Installing BepInEx (mod loader -- not one of this pack's own mods)"
 try {
     Install-Package $BepInExPack.ns $BepInExPack.name $BepInExPack.ver $TempDir
     $bepinexExtract = Join-Path $TempDir "$($BepInExPack.ns)-$($BepInExPack.name)\BepInExPack_Valheim"
@@ -116,43 +106,30 @@ try {
     exit 1
 }
 
-Write-Step "Installing pinned mods ($($Mods.Count) packages)"
-$PluginsDir = Join-Path $ValheimDir "BepInEx\plugins"
+Write-Step "Installing this pack's mods (bundled in this folder -- built from source, not downloaded)"
 New-Item -ItemType Directory -Path $PluginsDir -Force | Out-Null
-$failed = @()
-foreach ($mod in $Mods) {
-    try {
-        Install-Package $mod.ns $mod.name $mod.ver $PluginsDir
-    } catch {
-        Write-Warn "Failed: $($mod.ns)-$($mod.name)-$($mod.ver) -- $_"
-        $failed += "$($mod.ns)-$($mod.name)"
-    }
-}
-if ($failed.Count -eq 0) {
-    Write-Ok "All mods installed"
-} else {
-    Write-Warn "Some mods failed to install: $($failed -join ', ')"
-    Write-Warn "Re-run this installer to retry -- it's safe to run again."
-}
-
-Write-Step "Installing ValheimQoL (custom plugin, bundled in this folder)"
-$QolSource = Join-Path $ScriptDir "ValheimQoL.dll"
-if (-not (Test-Path $QolSource)) {
+$BundledPluginsDir = Join-Path $ScriptDir "plugins"
+if (-not (Test-Path $BundledPluginsDir)) {
     Write-Host ""
-    Write-Host "ValheimQoL.dll not found next to this script -- something's missing from the zip." -ForegroundColor Red
+    Write-Host "plugins\ folder not found next to this script -- something's missing from the zip." -ForegroundColor Red
     Read-Host "Press Enter to close"
     exit 1
 }
-$QolDest = Join-Path $PluginsDir "richard-ValheimQoL"
-New-Item -ItemType Directory -Path $QolDest -Force | Out-Null
-Copy-Item $QolSource $QolDest -Force
-Write-Ok "ValheimQoL.dll installed"
+$installedPlugins = @()
+Get-ChildItem $BundledPluginsDir -Directory | ForEach-Object {
+    $dest = Join-Path $PluginsDir $_.Name
+    if (Test-Path $dest) { Remove-Item $dest -Recurse -Force }
+    Copy-Item $_.FullName $dest -Recurse -Force
+    Write-Ok $_.Name
+    $installedPlugins += $_.Name
+}
 
 Write-Step "Verifying"
 $checks = @(
     @{ path = (Join-Path $ValheimDir "winhttp.dll"); label = "BepInEx loader (winhttp.dll)" }
     @{ path = (Join-Path $ValheimDir "BepInEx\core\BepInEx.dll"); label = "BepInEx core" }
-    @{ path = (Join-Path $QolDest "ValheimQoL.dll"); label = "ValheimQoL plugin" }
+    @{ path = (Join-Path $PluginsDir "richard-ValheimQoL\ValheimQoL.dll"); label = "ValheimQoL plugin" }
+    @{ path = (Join-Path $PluginsDir "Azumatt-AzuCraftyBoxes\AzuCraftyBoxes.dll"); label = "AzuCraftyBoxes plugin" }
 )
 $allGood = $true
 foreach ($c in $checks) {
@@ -167,7 +144,7 @@ $pluginCount = (Get-ChildItem $PluginsDir -Directory).Count
 Write-Host "    $pluginCount plugin folders present in BepInEx\plugins"
 
 Write-Host ""
-if ($allGood -and $failed.Count -eq 0) {
+if ($allGood) {
     Write-Host "=== Install complete ===" -ForegroundColor Green
 } else {
     Write-Host "=== Install finished with problems -- see above ===" -ForegroundColor Yellow

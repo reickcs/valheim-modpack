@@ -11,21 +11,21 @@ cp .env.example .env
 docker compose up -d
 ```
 
-That pulls the vanilla dedicated server first. Once it's up, install the
-modpack:
+That pulls the vanilla dedicated server first. Once it's up, build the
+modpack (see part 3 below for each mod's build command) and copy the
+resulting DLLs into place:
 
 ```bash
-python3 install_mods.py
-```
-
-This resolves `modpack.yaml`'s dependency graph via the Thunderstore API
-and installs into `config/bepinex/plugins/`. Add `ValheimQoL.dll` (build
-it yourself, see part 3 below, or grab a pre-built one) into
-`config/bepinex/plugins/richard-ValheimQoL/ValheimQoL.dll`, then:
-
-```bash
+mkdir -p config/bepinex/plugins/richard-ValheimQoL config/bepinex/plugins/Azumatt-AzuCraftyBoxes
+cp ValheimQoL-source/bin/Release/ValheimQoL.dll config/bepinex/plugins/richard-ValheimQoL/
+cp AzuCraftyBoxes-source/bin/Release/AzuCraftyBoxes.dll AzuCraftyBoxes-source/bin/Release/YamlDotNet.dll \
+   config/bepinex/plugins/Azumatt-AzuCraftyBoxes/
 docker compose restart
 ```
+
+Only these two go on the server — `PlantEasily` and `ConfigurationManager`
+are client-only (see `modpack.yaml`'s `client_only_mods`), they'd be dead
+weight here.
 
 Set `BEPINEX=true` in `.env` first if you haven't — env var changes need
 `docker compose up -d` (recreate), not `restart`, to actually take
@@ -64,9 +64,9 @@ effect.
   docker compose restart
   ```
 - **Dropping a mod from `modpack.yaml` doesn't remove its old files.**
-  `install_mods.py` says so itself: `rm -rf` its folder from both
-  `config/bepinex/plugins/` and `data/bepinex/BepInEx/plugins/` before
-  restarting, or the stale copy keeps loading.
+  `rm -rf` its folder from both `config/bepinex/plugins/` and
+  `data/bepinex/BepInEx/plugins/` before restarting, or the stale copy
+  keeps loading.
 - **A mod that logs "This mod is client-side only and is not needed on
   a dedicated server"** belongs in `modpack.yaml`'s `client_only_mods`,
   not `mods` — it's dead weight on the server (see `PlantEasily`'s entry
@@ -77,33 +77,59 @@ effect.
 See [CLIENT-INSTALL.md](CLIENT-INSTALL.md), or hand out
 `windows-installer/ValheimModpack.zip` for the one-click Windows path.
 
-## 3. Building ValheimQoL from source
+## 3. Building the mods from source
 
-Needs the .NET 8 SDK (or newer) and reference DLLs this repo
-intentionally doesn't ship — see
+Needs the .NET 8 SDK (or newer). Every project here (`ValheimQoL-source/`,
+`AzuCraftyBoxes-source/`, `PlantEasily-source/`,
+`ConfigurationManager-source/`) needs reference DLLs this repo
+intentionally doesn't ship in `<project>/libs/` — see
 [`ValheimQoL-source/libs/README.md`](ValheimQoL-source/libs/README.md)
-for exactly which files and where to get them (short version: your own
-Valheim/dedicated-server install, plus BepInExPack's `core/` folder).
+for the base set and where to get them (your own Valheim/dedicated-server
+install, plus BepInExPack's `core/` folder).
 
+**`AzuCraftyBoxes-source/`, `PlantEasily-source/`, and
+`ConfigurationManager-source/` additionally need "publicized" copies**
+of `assembly_valheim.dll`/`assembly_utils.dll`/`assembly_guiutils.dll`
+(all private/internal members made public — they reach into game
+internals more directly than ValheimQoL's Harmony/AccessTools-only
+approach). Produce these yourself:
 ```bash
-cd ValheimQoL-source
+dotnet tool install -g BepInEx.AssemblyPublicizer.Cli
+assembly-publicizer assembly_valheim.dll assembly_utils.dll assembly_guiutils.dll -o <project>/libs -f
+```
+(On Windows, if you hit "You must install or update .NET to run this
+application" even with a newer SDK installed, set
+`$env:DOTNET_ROLL_FORWARD = "LatestMajor"` first — the tool pins an
+exact old runtime version by default.)
+
+Then, for any of the four projects:
+```bash
+cd <project>-source
 dotnet build -c Release
-# -> bin/Release/ValheimQoL.dll
+# -> bin/Release/<AssemblyName>.dll (+ any NuGet-resolved DLLs alongside it --
+#    AzuCraftyBoxes and ConfigurationManager both need YamlDotNet.dll deployed
+#    next to them; ConfigurationManager also needs Newtonsoft.Json.dll. These
+#    aren't ILRepack-merged in, unlike upstream's own build -- simpler, at the
+#    cost of a couple of extra loose DLLs per plugin folder.)
 ```
 
-**Adding a new patch:** decompile the target class first —
-[`ilspycmd`](https://github.com/icsharpcode/ILSpy) (`dotnet tool install
--g ilspycmd`) against your own copy of `assembly_valheim.dll` — and
-confirm the field/method you're about to patch actually exists and is
-named what you think. Valheim's internal API isn't stable enough
-between patches to guess from memory or from an older version's source.
-`ilspycmd -t ClassName assembly_valheim.dll` decompiles one class;
-`-l c` lists every type in the assembly.
+**Adding a new patch, or fixing a Valheim-update break:** decompile the
+target class first — [`ilspycmd`](https://github.com/icsharpcode/ILSpy)
+(`dotnet tool install -g ilspycmd`) against your own copy of
+`assembly_valheim.dll` — and confirm the field/method actually exists
+and is named what you think before writing code against it. Valheim's
+internal API isn't stable enough between patches to guess from memory
+or from an older version's source; every fix already made across these
+four projects (see each's `build_fixes`/`stripped` entry in
+`modpack.yaml`) was found this way, not guessed. `ilspycmd -t ClassName
+assembly_valheim.dll` decompiles one class; `-l c` lists every type in
+the assembly.
 
-**Deploying a rebuilt plugin:**
+**Deploying a rebuilt plugin to the server** (only `ValheimQoL` and
+`AzuCraftyBoxes` run there — see part 1):
 ```bash
-scp bin/Release/ValheimQoL.dll <server>:~/valheim/config/bepinex/plugins/richard-ValheimQoL/ValheimQoL.dll
-scp bin/Release/ValheimQoL.dll <server>:~/valheim/data/bepinex/BepInEx/plugins/richard-ValheimQoL/ValheimQoL.dll
+scp bin/Release/<Name>.dll <server>:~/valheim/config/bepinex/plugins/<namespace-name>/<Name>.dll
+scp bin/Release/<Name>.dll <server>:~/valheim/data/bepinex/BepInEx/plugins/<namespace-name>/<Name>.dll
 ssh <server> 'cd ~/valheim && docker compose restart'
 ```
 (Both copies — see the two-install-paths gotcha above.) Then watch the
@@ -112,18 +138,26 @@ it done.
 
 ## 4. Rebuilding the Windows installer zip
 
-After any modpack/plugin change:
+After any plugin change, rebuild whichever project changed (part 3),
+then re-copy its output into `windows-installer/plugins/<namespace-name>/`
+and re-zip:
 ```bash
-cp ValheimQoL-source/bin/Release/ValheimQoL.dll windows-installer/
-# hand-edit the $Mods array in windows-installer/install.ps1 to match modpack.yaml
-cd windows-installer && zip -r ../ValheimModpack.zip . -x ".*" && cd ..
+cp ValheimQoL-source/bin/Release/ValheimQoL.dll windows-installer/plugins/richard-ValheimQoL/
+cp AzuCraftyBoxes-source/bin/Release/AzuCraftyBoxes.dll AzuCraftyBoxes-source/bin/Release/YamlDotNet.dll \
+   windows-installer/plugins/Azumatt-AzuCraftyBoxes/
+cp PlantEasily-source/bin/Release/Advize_PlantEasily.dll windows-installer/plugins/Advize-PlantEasily/
+cp ConfigurationManager-source/bin/Release/ConfigurationManager.dll \
+   ConfigurationManager-source/bin/Release/Newtonsoft.Json.dll \
+   ConfigurationManager-source/bin/Release/YamlDotNet.dll \
+   windows-installer/plugins/shudnal-ConfigurationManager/
+
+# PowerShell: Compress-Archive -Path windows-installer\* -DestinationPath ValheimModpack.zip -Force
 ```
-The mod list in `install.ps1` is hand-copied from `modpack.yaml`, not
-read dynamically — PowerShell has no built-in YAML parser, and a
-hardcoded list is safer than dependency-resolution logic running
-unsupervised on a player's machine. Test it before handing it out:
-install PowerShell Core locally and actually run the download/extract
-logic against the live Thunderstore API, don't just eyeball the diff.
+`install.ps1` itself only needs to change if a plugin's *folder name*
+changes (it copies whatever's under `plugins/` verbatim — no hardcoded
+mod list to keep in sync anymore, unlike the old Thunderstore-download
+version). It still downloads BepInEx itself from Thunderstore — that's
+infrastructure, not one of this pack's mods.
 
 ## 5. Tuning settings live
 

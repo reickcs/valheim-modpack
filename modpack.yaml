@@ -1,87 +1,114 @@
-# Pinned Valheim BepInEx modpack — source of truth for both the server
-# plugin folder and the client Thunderstore/Gale profile.
+# Valheim modpack — every mod here is BUILT FROM SOURCE in this repo, not
+# downloaded from Thunderstore at deploy time (see SETUP.md part 3/4). The
+# only Thunderstore download left anywhere in this pack is BepInEx itself,
+# pulled by windows-installer/install.ps1 -- that's the mod loader
+# (infrastructure), not one of this pack's own mods.
 #
-# Upgrade workflow (for a future Claude session or for yourself):
-#   1. For each mod below, check its current version at:
-#        https://thunderstore.io/api/experimental/package/<namespace>/<name>/
-#      (the "latest.version_number" field)
-#   2. Compare against `pinned` here. If newer, decide whether to bump —
-#      do NOT bump automatically, this server intentionally runs pinned
-#      versions (see deployment plan: manual, version-pinned updates only).
-#   3. Update `pinned` and `last_checked` below, then run:
-#        python3 install_mods.py
-#      from ~/valheim on the gameserver. It re-resolves the dependency
-#      graph from these pins and reinstalls into config/bepinex/plugins/.
-#   4. Rebuild the client Gale/Thunderstore profile to match, re-export,
-#      redistribute to players (see CLIENT-INSTALL.md).
-#   5. Restart the server: `docker compose restart` from ~/valheim.
+# 2026-09-09: switched from "download pinned Thunderstore releases" to
+# "vendor the source and build it ourselves" on request -- the goal being
+# full ownership of the codebase, no waiting on upstream authors to fix
+# something. Each mod below was vendored from its own GitHub repo under
+# its own license (recorded per-entry); `install_mods.py` is no longer
+# part of the deploy path and is kept only as a historical fallback if a
+# *future* mod gets added before it's vendored (see its own header comment).
+#
+# Upgrade workflow now: pull the upstream repo's latest source, re-apply
+# whatever local patches this file documents per-mod (BCL/game-API fixes,
+# stripped optional integrations), rebuild, redeploy. See SETUP.md part 3.
 
 last_checked: 2026-09-09
 game_version_target: 1.0  # re-verified against the 1.0/Deep North launch build (25185644)
 
-# 2026-09-09: pack trimmed down for the 1.0 restart. Removed PlantEverything,
-# AzuExtendedPlayerInventory, CreatureLevelAndLootControl, and EpicLoot on
-# request — 1.0's native inventory-upgrade ("upgradeable pockets") mechanic
-# covers some of what AzuExtendedPlayerInventory did, and the loot/rarity
-# systems weren't wanted for this restart. Jotunn/JsonDotNET dropped too:
-# they were only pulled in as EpicLoot's dependency graph, and neither
-# remaining mod needs them (both declare only BepInExPack as a dependency,
-# confirmed against the Thunderstore API).
 mods:
   - namespace: Azumatt
     name: AzuCraftyBoxes
-    pinned: 1.8.15
+    pinned: 1.8.15  # source vendored at this tag
+    source: https://github.com/AzumattDev/AzuCraftyBoxes
+    license: MIT-0
+    vendored_at: AzuCraftyBoxes-source/
     why: Craft using materials from nearby containers, not just inventory
+    stripped: >
+      Upstream also integrates with EpicLoot, WardIsLove, Backpacks,
+      GemBags (Jewelcrafting), and kg/mkz ItemDrawers -- none of those mods
+      run in this pack, so all of it was stripped (Compatibility/ folder,
+      the optional IContainers implementations, and their bundled
+      third-party API DLLs) rather than vendoring four more dependency
+      chains for integrations nothing here uses.
+    build_fixes: >
+      netstandard2.1-vs-net472 BCL gaps only, no game-API breaks:
+      Dictionary.TryAdd isn't in classic .NET Framework (SmelterPatches.cs,
+      2 call sites, replaced with ContainsKey+indexer). Texture2D.LoadImage
+      (UnityEngine.ImageConversionModule) hit a netstandard 2.0-vs-2.1
+      reference-resolution conflict not worth chasing for one decorative
+      status-effect icon -- stubbed to return no icon
+      (Patches/SE_ContainerPull.cs), the status effect itself still works.
 
+# Server-side character storage: previously Smoothbrain/ServerCharacters,
+# REMOVED because its source has no license on GitHub -- couldn't legally
+# vendor it. Reimplemented from scratch as part of ValheimQoL instead (see
+# custom_plugins below) rather than continuing to depend on an unlicensed
+# external mod. Retired from the server 2026-09-09; ValheimQoL's own
+# version defaults OFF until a live connect/save/reconnect round-trip is
+# verified -- see ValheimQoL's `server_character_storage` entry below.
 
-  - namespace: Smoothbrain
-    name: ServerCharacters
-    pinned: 1.4.16
-    why: >
-      Characters stored server-side instead of client %appdata%.
-      MUST be installed on the server AND every connecting client,
-      or affected players simply get a blank character.
-
-# Client-only convenience mods — installed on a player's own machine via
-# `install_mods.py --client`, never copied to the gameserver's plugin folder
-# (a headless server never renders a GUI, so these would be dead weight
-# there). Not part of the shared gameplay modpack; each player's local
-# choice, safe to differ between machines.
+# Client-only mods -- bundled into windows-installer/plugins/ for players,
+# never copied to the gameserver's plugin folder (a headless server never
+# renders a GUI, so these would be dead weight there).
 client_only_mods:
   - namespace: Advize
     name: PlantEasily
-    pinned: 2.1.1
+    pinned: 2.1.1  # source vendored at this commit (monorepo, no per-mod tags)
+    source: https://github.com/AdvizeGH/Advize_ValheimMods (Advize_PlantEasily/ subfolder)
+    license: GPL-3.0
+    vendored_at: PlantEasily-source/
     why: >
       Snaps crops into evenly-spaced rows/columns with the cultivator and
-      blocks invalid overlapping placement. Added 2026-09-09 on request.
-      Same author as the since-removed PlantEverything; actively maintained
-      (last updated 2026-04-05, already pinned to the Unity-6-compatible
-      BepInExPack build) -- picked over FarmGrid and Venture Farm Grid,
-      both stale (2023 / late-2024) and pinned to pre-Unity-6 BepInEx.
+      blocks invalid overlapping placement. Same author as the
+      since-removed PlantEverything.
       Client-only per its own boot log: "This mod is client-side only and
       is not needed on a dedicated server" -- installed to the server
       once by mistake, moved here and pulled back off the server the same
       day. All its snapping logic is local placement-preview UI; nothing
       for a headless server to simulate.
+    build_fixes: >
+      One real Valheim 1.0 API break, found and fixed by decompile (same
+      standard as ValheimQoL): Piece.SetCreator(long, PlatformUserID)
+      dropped its second parameter in 1.0 -- now just SetCreator(long).
+      Core/PlacementController.cs line ~106.
 
   - namespace: shudnal
     name: ConfigurationManager
-    pinned: 1.1.16
+    pinned: 1.1.17  # source vendored at master HEAD as of 2026-09-09 (no version-matching git tags upstream)
+    source: https://github.com/shudnal/ConfigurationManager
+    license: LGPL-3.0
+    vendored_at: ConfigurationManager-source/
     why: >
       In-game hotkey opens a window listing every loaded mod's BepInEx
       Config.Bind settings (ours and everyone else's) for live editing —
       no need to hand-edit .cfg files. This fork specifically adds a
       config-files editor, split view, and highlights values changed from
       default, which is exactly the "what have I tuned, ready to push to
-      the server" workflow this is for. Pulls in ValheimModding/YamlDotNet,
-      ValheimModding/JsonDotNET, and shudnal/ConditionalConfigSync as
-      resolved dependencies (handled automatically by install_mods.py,
-      same as every other pinned mod).
-    note: >
-      Edits made through this UI don't take visible effect until next
-      restart — every ValheimQoL patch reads its config once at Awake()
-      (Player.Awake / ZNetScene.Awake / Game.Awake / Fireplace.Awake), not
-      live. This is expected, not a bug.
+      the server" workflow this is for.
+    stripped: >
+      Upstream also integrates with shudnal/ConditionalConfigSync (a
+      fourth external dependency, Unlicense) purely for an optional
+      lock-icon tooltip distinguishing "conditionally" vs "always"
+      server-controlled settings -- dropped rather than vendoring a
+      fourth project for that. Plain ServerSync detection (recognizes any
+      ServerSync-based config by type name via reflection, including our
+      own vendored ConfigSync.cs) is untouched and still works -- see
+      ConfigSynchronizationInfo.cs for exactly what was removed. The
+      `[BepInDependency("_shudnal.ConditionalConfigSync", ...)]` hard
+      dependency that came with it was removed too, so this plugin
+      doesn't refuse to load without that mod installed.
+    build_fixes: >
+      One real Valheim 1.0 API break: InventoryGrid.OnLeftDown/OnRightDown
+      (used to Harmony-patch input-blocking while the config window is
+      open) don't exist under those names -- verified by decompile, the
+      real members are OnLeftClick/OnRightClick. Swapped in
+      ValheimConfigurationManager.cs. Also two net472-BCL gaps unrelated
+      to the game (string.StartsWith(char) isn't in classic .NET
+      Framework, 6 call sites switched to the string-literal overload).
 
 excluded:
   - namespace: Smoothbrain
@@ -109,26 +136,23 @@ excluded:
       feature (extra cooking recipes) nobody was relying on. Removed from
       both server and client.
 
-# Transitive dependencies — NOT hand-maintained here. As of the 1.0 restart
-# neither remaining mod (AzuCraftyBoxes, ServerCharacters) declares any
-# Thunderstore dependency beyond BepInExPack itself, so install_mods.py
-# should resolve an empty dependency set now (previously Jotunn 2.29.2 +
-# JsonDotNET 13.0.4, pulled in only by the now-removed EpicLoot). The
-# BepInExPack itself is provided by the community-valheim-tools/valheim-server-docker
-# image directly (BEPINEX=true) and is intentionally not managed here — the
-# image auto-updates it, confirmed it's already on a Unity-6-compatible
-# build (5.4.2333+) as of the 1.0 launch.
+# The BepInExPack itself is provided by the
+# community-valheim-tools/valheim-server-docker image directly
+# (BEPINEX=true) and is intentionally not managed here — the image
+# auto-updates it, confirmed it's already on a Unity-6-compatible build
+# (5.4.2333+) as of the 1.0 launch.
 
 custom_plugins:
   # Hand-written, NOT from Thunderstore — source lives at
   # ValheimQoL-source/ in this repo (originally developed on a Linux
   # machine, now built on Windows -- see SETUP.md).
-  # install_mods.py does not touch this; deploy by building
-  # (`dotnet build -c Release`) and scp-ing bin/Release/ValheimQoL.dll
-  # to config/bepinex/plugins/richard-ValheimQoL/ on the gameserver, then
-  # `docker compose restart`.
+  # Deploy by building (`dotnet build -c Release`) and scp-ing
+  # bin/Release/ValheimQoL.dll to config/bepinex/plugins/richard-ValheimQoL/
+  # AND data/bepinex/BepInEx/plugins/richard-ValheimQoL/ on the gameserver
+  # (two separate live copies when BEPINEX=true -- see SETUP.md gotchas),
+  # then `docker compose restart`.
   - name: ValheimQoL
-    version: 0.9.0
+    version: 0.10.0
     purpose: >
       Recreates most of the original Valheim Plus feature set as standalone
       Harmony patches, verified against decompiled assembly_valheim.dll
@@ -141,9 +165,10 @@ custom_plugins:
       registered" boot log lines). The server pushes its live config to any
       connecting client automatically -- no more manually distributing a
       matching .cfg file, no more drift between server and client installs.
-      ModRequired is left false: a client without ValheimQoL at all can
-      still connect (nothing to sync into), it just won't get any of the QoL
-      behavior. Requires Unity.TextMeshPro.dll as a new build reference
+      ModRequired flipped to true in 0.8.1 (on request): a client without
+      ValheimQoL now gets disconnected the same way a missing
+      ServerCharacters install used to, rather than silently connecting
+      without the QoL effects. Requires Unity.TextMeshPro.dll as a new build reference
       (libs/Unity.TextMeshPro.dll, pulled from the server's own Managed
       folder) -- ConfigSync's lock-icon UI code references TMP_Text even
       though a headless server never draws it.
@@ -176,6 +201,33 @@ custom_plugins:
       - "AllowOreThroughPortals -- same ZNetScene.Awake walk, sets ItemDrop.ItemData.SharedData.m_teleportable = true (vanilla blocks ore/metal from portal travel via this field). Code default is off; SERVER IS CURRENTLY RUNNING WITH THIS SET TO TRUE (deliberately enabled, deployed via server .cfg originally on 2026-08-22, carried forward into the 1.0 restart) -- local client's own .cfg is untouched and still defaults off"
       - "MapExploreRadiusMultiplier -- NEW in 0.7.0. Postfix on Minimap.Awake, scales Minimap.m_exploreRadius (vanilla 100) -- how much fog-of-war clears per step (deployed at 2x)"
       - "DisableScreenShake -- NEW in 0.7.0. Prefix on GameCamera.AddShake, short-circuits the whole method when enabled. Vanilla already has its own per-client toggle for this (m_cameraShakeEnabled, read from PlatformPrefs \"CameraShake\" in GameCamera.Awake) but that's each player's own Settings menu preference, not server-enforced -- this makes it consistent for everyone regardless of their own settings (deployed: true, default-on for the 1.0 restart, on request)"
+    server_character_storage: >
+      NEW in 0.10.0 (ServerProfilePatch.cs). Replaces the removed
+      ServerCharacters mod (see the "mods:" section above for why it was
+      dropped) with an original implementation -- decompiling confirmed
+      vanilla's PlayerProfile.Load/Save only ever touch the local .fch
+      file (Game.SpawnPlayer -> PlayerProfile.LoadPlayerData is the one
+      load chokepoint, Game.SavePlayerProfile the one save chokepoint),
+      so there was no existing server-authoritative path to hook -- this
+      adds a parallel one. Pull-based: on RPC_PeerInfo, the client
+      registers a receiver then explicitly asks the server for its
+      SteamID's stored blob (avoids racing an unregistered receiver the
+      way an unprompted server push would); the server replies with
+      whatever it has on disk, or "no data" for a new player, in which
+      case the client just keeps using its local file same as vanilla.
+      Every local .fch save still happens first and is never skipped, so
+      a network failure never loses local progress -- worst case is a
+      missed sync, not lost data. Config: ServerCharacterStorageEnabled
+      (Server - Character Storage section), default FALSE. Deliberately
+      not defaulted on like everything else in this restart -- this is
+      the one feature that touches real save data, and it hasn't had a
+      live connect/save/reconnect round-trip tested yet (can't be done
+      without an actual client connecting). Verified so far: builds
+      clean, deploys clean, RPC registers clean in server logs
+      ("Registered 'richard.serverprofile...'" -- not literally what's
+      logged, check ServerProfilePatch.cs for the actual RPC names).
+      NOT yet verified: an actual character actually round-tripping.
+      Test before flipping this on for real play.
     config_file: config/bepinex/richard.valheimqol.cfg on the gameserver
     all_numeric_settings_have_slider_ranges: >
       Every float/int setting carries a BepInEx AcceptableValueRange so

@@ -1,5 +1,18 @@
 #!/usr/bin/env python3
-"""Install the pinned Valheim BepInEx modpack from modpack.yaml.
+"""HISTORICAL FALLBACK -- not part of the current deploy path.
+
+As of 2026-09-09 every mod in this pack is built from vendored source
+(*-source/ folders, see SETUP.md part 3) rather than downloaded from
+Thunderstore, so this script currently has nothing to do against
+modpack.yaml's `mods`/`client_only_mods` entries (they no longer carry
+Thunderstore namespace/name/pinned fields in a form this resolves).
+Kept only in case a *future* mod gets added to the pack before someone
+gets around to vendoring it -- point it at a modpack.yaml-shaped file
+with the old namespace/name/pinned schema and it still works standalone.
+
+Original docstring follows.
+
+Install the pinned Valheim BepInEx modpack from modpack.yaml.
 
 Reads mods[].namespace/name/pinned from modpack.yaml (next to this script),
 recursively resolves their dependency graph via the Thunderstore experimental

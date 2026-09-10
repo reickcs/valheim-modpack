@@ -1,12 +1,14 @@
 # secrets / environment-specific
 .env
 
-# copyrighted third-party DLLs (see ValheimQoL-source/libs/README.md)
-ValheimQoL-source/libs/*.dll
+# copyrighted third-party DLLs (game assemblies, BepInEx core, publicized
+# variants) -- see ValheimQoL-source/libs/README.md for what goes here and
+# where to get it. Applies to every vendored project's libs/ folder.
+*-source/libs/*.dll
 
 # build output
-ValheimQoL-source/bin/
-ValheimQoL-source/obj/
+*-source/bin/
+*-source/obj/
 
 # server runtime state (world saves, BepInEx-generated configs, logs)
 config/
