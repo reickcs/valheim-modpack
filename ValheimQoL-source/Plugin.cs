@@ -1,5 +1,6 @@
 using BepInEx;
 using BepInEx.Configuration;
+using BepInEx.Logging;
 using HarmonyLib;
 using ServerSync;
 
@@ -10,7 +11,7 @@ namespace ValheimQoL
     {
         public const string PluginGUID = "richard.valheimqol";
         public const string PluginName = "ValheimQoL";
-        public const string PluginVersion = "0.9.0";
+        public const string PluginVersion = "0.10.0";
 
         // Every ConfigEntry below is wrapped in _configSync.AddConfigEntry, which
         // makes the server the source of truth once a client connects to one --
@@ -21,6 +22,10 @@ namespace ValheimQoL
         // installed always ends up matching whatever the server has, no manual
         // config-file distribution needed anymore.
         private static ConfigSync _configSync;
+
+        // Static so the (static) Harmony patch classes can log -- BepInEx's
+        // own Logger property is per-instance, only reachable from here.
+        internal static ManualLogSource Log;
 
         // Player - Gameplay: auto-pickup
         public static SyncedConfigEntry<float> AutoPickupRange;
@@ -93,10 +98,15 @@ namespace ValheimQoL
         public static SyncedConfigEntry<float> DifficultyHealthScalePerPlayer;
         public static SyncedConfigEntry<int> DifficultyMaxScalingPlayers;
 
+        // Server - Character Storage
+        public static SyncedConfigEntry<bool> ServerCharacterStorageEnabled;
+
         private Harmony _harmony;
 
         private void Awake()
         {
+            Log = Logger;
+
             _configSync = new ConfigSync(PluginGUID)
             {
                 DisplayName = PluginName,
@@ -270,6 +280,10 @@ namespace ValheimQoL
             DisableScreenShake = _configSync.AddConfigEntry(Config.Bind(
                 "Player - Camera", "DisableScreenShake", true,
                 "If true, forces camera shake off (hits, explosions, etc.) regardless of each player's own in-game Settings > Game > Camera Shake preference. Vanilla already exposes a per-client toggle for this; this setting makes it consistent for everyone connected."));
+
+            ServerCharacterStorageEnabled = _configSync.AddConfigEntry(Config.Bind(
+                "Server - Character Storage", "Enabled", false,
+                "If true, characters are stored server-side (keyed by SteamID) instead of trusting each client's local %appdata% file -- replaces the old ServerCharacters mod, built from scratch (see modpack.yaml for why). Defaults to OFF: this touches real save data, verify a connect/save/reconnect round-trip actually works before relying on it. Safe either way -- the local .fch save always happens first and is never skipped, so a network failure never loses local progress."));
 
             _harmony = new Harmony(PluginGUID);
             _harmony.PatchAll();
