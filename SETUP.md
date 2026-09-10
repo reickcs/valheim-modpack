@@ -89,16 +89,27 @@ the same way if yours lives elsewhere.
 
 ### Gotchas we actually hit running this
 
-- **The image's own SteamCMD auto-updater can silently no-op.** If you
-  see `Error! App '896660' state is 0x6 after update job` followed by
-  `Failed to update... using existing local files` in the logs, the
-  update did not actually happen — it fell back to whatever was already
-  installed. Force it manually:
+- **The base game is pinned, not auto-updating** (`UPDATE_CRON: ""` in
+  `docker-compose.yml`, same "manual, version-pinned" policy this repo
+  already uses for mods). If a player gets **"Incompatible version" /
+  "Network version check, their:N, mine:M"** on connect, it means Steam
+  auto-updated *their client* ahead of the pinned server build — this is
+  not a mod bug, and it's not always immediately fixable: Steam's client
+  depot (892970) and dedicated-server depot (896660) are pushed by Iron
+  Gate independently and can be out of sync for hours to a day after a
+  launch (hit this personally on 2026-09-10, the day after the 1.0
+  launch — client got network version 39, server was still on 36, and a
+  manual update attempt confirmed there just wasn't a newer server-depot
+  build published yet). Check for and apply an update deliberately —
+  don't poll for this in a live session, it's not worth the attention:
   ```bash
-  docker exec -u valheim valheim-server bash -c \
-    'cd /opt/steamcmd && ./steamcmd.sh +force_install_dir /opt/valheim/server +login anonymous +app_update 896660 validate +quit'
-  docker compose restart
+  REMOTE_HOST=your-gameserver-ssh-alias ./scripts/update-server-game.sh
   ```
+  It no-ops cleanly (reports "No update available") if Iron Gate hasn't
+  published a newer server-depot build yet — safe to just re-run
+  whenever. Handles the two-install-paths sync (below) and the restart
+  itself; see its own header comment for exactly what it does. Current
+  pinned buildid is tracked in `modpack.yaml`.
 - **With `BEPINEX=true`, there are *two separate* game-file copies** —
   one at `data/server/` (plain), one at `data/bepinex/` (the modded
   boot path). Updating one does **not** update the other. If you hit

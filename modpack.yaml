@@ -16,8 +16,21 @@
 # whatever local patches this file documents per-mod (BCL/game-API fixes,
 # stripped optional integrations), rebuild, redeploy. See SETUP.md part 3.
 
-last_checked: 2026-09-09
-game_version_target: 1.0  # re-verified against the 1.0/Deep North launch build (25185644)
+last_checked: 2026-09-10
+game_version_target: 1.0  # Deep North launch
+
+# The base game (not just mods) is pinned too, deliberately not
+# auto-updating -- see docker-compose.yml's UPDATE_CRON comment and
+# scripts/update-server-game.sh. Steam's client depot (892970) and
+# dedicated-server depot (896660) are pushed independently and can drift
+# out of sync for hours-to-a-day after a launch; discovered this the hard
+# way on 2026-09-10 when a client auto-updated to network version 39 while
+# the server was still on 36 ("Network version check, their:39, mine:36" in
+# the server log, "Incompatible version" on the client) -- not a mod issue,
+# not fixable from our side, just Iron Gate not having pushed the matching
+# server build yet. Update deliberately with the script above once one's
+# actually available, not by polling in a live session.
+pinned_server_buildid: 25185644  # depot 896660, as of 2026-09-10
 
 mods:
   - namespace: Azumatt
@@ -42,6 +55,18 @@ mods:
       reference-resolution conflict not worth chasing for one decorative
       status-effect icon -- stubbed to return no icon
       (Patches/SE_ContainerPull.cs), the status effect itself still works.
+      2026-09-10: found live, connecting a real client -- upstream ships
+      TWO independent version-check systems: the working ConfigSync one
+      (used for config sync, passes fine) and a second, older, hand-rolled
+      one (VersionHandshake.cs, a custom "{mod}_VersionCheck" RPC) that was
+      actively broken -- the client-side reply never reached the server,
+      which timed out and disconnected every connection attempt with a
+      bare "Incompatible version" (no detail, unlike ConfigSync's own
+      clear message). Root-caused by reading the server log's exact RPC
+      exchange, not guessed. Removed VersionHandshake.cs entirely --
+      ConfigSync's own ModRequired/MinimumRequiredVersion already covers
+      this job correctly and was already proven working in the same
+      connection attempt.
 
 # Server-side character storage: previously Smoothbrain/ServerCharacters,
 # REMOVED because its source has no license on GitHub -- couldn't legally

@@ -24,6 +24,13 @@ services:
       BACKUPS_MAX_AGE: 7
       BACKUPS_MAX_COUNT: 0
       BACKUPS_ZIP: "true"
+      # Deliberately pinned, not auto-updating -- same "manual,
+      # version-pinned" policy this repo already uses for mods (see
+      # modpack.yaml's header). Steam pushes the client and dedicated-server
+      # depots independently, not always in lockstep; an unattended server
+      # auto-update is just as likely to CAUSE a client/server version
+      # mismatch as fix one. Check for updates deliberately with
+      # scripts/update-server-game.sh -- see SETUP.md.
       UPDATE_CRON: ""
       UPDATE_IF_IDLE: "true"
     volumes:
