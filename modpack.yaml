@@ -1,0 +1,209 @@
+# Pinned Valheim BepInEx modpack — source of truth for both the server
+# plugin folder and the client Thunderstore/Gale profile.
+#
+# Upgrade workflow (for a future Claude session or for yourself):
+#   1. For each mod below, check its current version at:
+#        https://thunderstore.io/api/experimental/package/<namespace>/<name>/
+#      (the "latest.version_number" field)
+#   2. Compare against `pinned` here. If newer, decide whether to bump —
+#      do NOT bump automatically, this server intentionally runs pinned
+#      versions (see deployment plan: manual, version-pinned updates only).
+#   3. Update `pinned` and `last_checked` below, then run:
+#        python3 install_mods.py
+#      from ~/valheim on the gameserver. It re-resolves the dependency
+#      graph from these pins and reinstalls into config/bepinex/plugins/.
+#   4. Rebuild the client Gale/Thunderstore profile to match, re-export,
+#      redistribute to players (see CLIENT-INSTALL.md).
+#   5. Restart the server: `docker compose restart` from ~/valheim.
+
+last_checked: 2026-09-09
+game_version_target: 1.0  # re-verified against the 1.0/Deep North launch build (25185644)
+
+# 2026-09-09: pack trimmed down for the 1.0 restart. Removed PlantEverything,
+# AzuExtendedPlayerInventory, CreatureLevelAndLootControl, and EpicLoot on
+# request — 1.0's native inventory-upgrade ("upgradeable pockets") mechanic
+# covers some of what AzuExtendedPlayerInventory did, and the loot/rarity
+# systems weren't wanted for this restart. Jotunn/JsonDotNET dropped too:
+# they were only pulled in as EpicLoot's dependency graph, and neither
+# remaining mod needs them (both declare only BepInExPack as a dependency,
+# confirmed against the Thunderstore API).
+mods:
+  - namespace: Azumatt
+    name: AzuCraftyBoxes
+    pinned: 1.8.15
+    why: Craft using materials from nearby containers, not just inventory
+
+
+  - namespace: Smoothbrain
+    name: ServerCharacters
+    pinned: 1.4.16
+    why: >
+      Characters stored server-side instead of client %appdata%.
+      MUST be installed on the server AND every connecting client,
+      or affected players simply get a blank character.
+
+# Client-only convenience mods — installed on a player's own machine via
+# `install_mods.py --client`, never copied to the gameserver's plugin folder
+# (a headless server never renders a GUI, so these would be dead weight
+# there). Not part of the shared gameplay modpack; each player's local
+# choice, safe to differ between machines.
+client_only_mods:
+  - namespace: Advize
+    name: PlantEasily
+    pinned: 2.1.1
+    why: >
+      Snaps crops into evenly-spaced rows/columns with the cultivator and
+      blocks invalid overlapping placement. Added 2026-09-09 on request.
+      Same author as the since-removed PlantEverything; actively maintained
+      (last updated 2026-04-05, already pinned to the Unity-6-compatible
+      BepInExPack build) -- picked over FarmGrid and Venture Farm Grid,
+      both stale (2023 / late-2024) and pinned to pre-Unity-6 BepInEx.
+      Client-only per its own boot log: "This mod is client-side only and
+      is not needed on a dedicated server" -- installed to the server
+      once by mistake, moved here and pulled back off the server the same
+      day. All its snapping logic is local placement-preview UI; nothing
+      for a headless server to simulate.
+
+  - namespace: shudnal
+    name: ConfigurationManager
+    pinned: 1.1.16
+    why: >
+      In-game hotkey opens a window listing every loaded mod's BepInEx
+      Config.Bind settings (ours and everyone else's) for live editing —
+      no need to hand-edit .cfg files. This fork specifically adds a
+      config-files editor, split view, and highlights values changed from
+      default, which is exactly the "what have I tuned, ready to push to
+      the server" workflow this is for. Pulls in ValheimModding/YamlDotNet,
+      ValheimModding/JsonDotNET, and shudnal/ConditionalConfigSync as
+      resolved dependencies (handled automatically by install_mods.py,
+      same as every other pinned mod).
+    note: >
+      Edits made through this UI don't take visible effect until next
+      restart — every ValheimQoL patch reads its config once at Awake()
+      (Player.Awake / ZNetScene.Awake / Game.Awake / Fireplace.Awake), not
+      live. This is expected, not a bug.
+
+excluded:
+  - namespace: Smoothbrain
+    name: Jewelcrafting
+    considered_version: 2.0.1
+    reason: >
+      BepInEx hard-refuses to load it: "Could not load [Jewelcrafting 2.0.1]
+      because it is incompatible with: randyknapp.mods.epicloot" — Jewelcrafting
+      declares itself explicitly incompatible with the installed EpicLoot.
+      Chose to keep EpicLoot (broader QoL/loot system, more other mods
+      depend on it) over Jewelcrafting. Re-evaluate if Jewelcrafting ships
+      a version that declares compatibility with a current EpicLoot again.
+      STALE as of 2026-09-09: EpicLoot itself was removed from the pack in
+      the 1.0 restart, so this specific incompatibility no longer applies.
+      Left here as history, not re-evaluated — nobody asked for Jewelcrafting
+      back, this just isn't a real blocker anymore if someone does.
+
+  - namespace: Xutz
+    name: ValheimCuisine
+    considered_version: 2.2.8
+    reason: >
+      Ships a large asset bundle (200+ recipe icons/models). User reported
+      noticeable slowdown opening the ConfigurationManager window with it
+      installed, and it was the heaviest asset payload in the pack for a
+      feature (extra cooking recipes) nobody was relying on. Removed from
+      both server and client.
+
+# Transitive dependencies — NOT hand-maintained here. As of the 1.0 restart
+# neither remaining mod (AzuCraftyBoxes, ServerCharacters) declares any
+# Thunderstore dependency beyond BepInExPack itself, so install_mods.py
+# should resolve an empty dependency set now (previously Jotunn 2.29.2 +
+# JsonDotNET 13.0.4, pulled in only by the now-removed EpicLoot). The
+# BepInExPack itself is provided by the community-valheim-tools/valheim-server-docker
+# image directly (BEPINEX=true) and is intentionally not managed here — the
+# image auto-updates it, confirmed it's already on a Unity-6-compatible
+# build (5.4.2333+) as of the 1.0 launch.
+
+custom_plugins:
+  # Hand-written, NOT from Thunderstore — source lives at
+  # ValheimQoL-source/ in this repo (originally developed on a Linux
+  # machine, now built on Windows -- see SETUP.md).
+  # install_mods.py does not touch this; deploy by building
+  # (`dotnet build -c Release`) and scp-ing bin/Release/ValheimQoL.dll
+  # to config/bepinex/plugins/richard-ValheimQoL/ on the gameserver, then
+  # `docker compose restart`.
+  - name: ValheimQoL
+    version: 0.9.0
+    purpose: >
+      Recreates most of the original Valheim Plus feature set as standalone
+      Harmony patches, verified against decompiled assembly_valheim.dll
+      (ilspycmd) rather than guessed from memory — Valheim's internal APIs
+      aren't stable enough to hand-wave.
+    config_sync: >
+      0.8.0: every config entry is now wrapped in ServerSync's ConfigSync
+      (vendored as ConfigSync.cs -- same library AzuCraftyBoxes and
+      ServerCharacters already use, confirmed by their own "ConfigSync RPC
+      registered" boot log lines). The server pushes its live config to any
+      connecting client automatically -- no more manually distributing a
+      matching .cfg file, no more drift between server and client installs.
+      ModRequired is left false: a client without ValheimQoL at all can
+      still connect (nothing to sync into), it just won't get any of the QoL
+      behavior. Requires Unity.TextMeshPro.dll as a new build reference
+      (libs/Unity.TextMeshPro.dll, pulled from the server's own Managed
+      folder) -- ConfigSync's lock-icon UI code references TMP_Text even
+      though a headless server never draws it.
+    verified_against_1_0: >
+      2026-09-09: every field/method touched by every patch below (13 of
+      them, pre-1.0) was re-verified by decompiling the 1.0/Deep North
+      build's assembly_valheim.dll (buildid 25185644, pulled straight from
+      the gameserver's own install) — all still exist under the same names
+      and signatures. No breakage found; nothing needed fixing for 1.0.
+    features:
+      - "AutoPickupRange -- overrides Player.m_autoPickupRange (vanilla already has auto-pickup; default 2m, deployed at 4m)"
+      - "StaminaUseMultiplier -- Prefix on Player.UseStamina(float v), scales every stamina cost (build/run/jump/attack/dodge/swim) uniformly (deployed at 0.75)"
+      - "FreeBuildToolStamina -- NEW in 0.9.0. Prefix on private Player.GetBuildStamina(), the single choke point hammer/hoe/cultivator all read their cost from (GetRightItem().m_shared.m_attack.m_attackStamina) via TryPlacePiece/RemovePiece/repair -- short-circuits it to return 0, zeroing stamina cost for exactly those three tools without touching combat/run/jump/dodge/swim (StaminaUseMultiplier above still applies to those normally) (deployed: true, on request)"
+      - "MaxCarryWeightMultiplier -- Postfix on Player.Awake, scales Player.m_maxCarryWeight (vanilla base 300); food/potion carry bonuses from m_seman.ModifyMaxCarryWeight still stack on top normally (deployed at 1.5x)"
+      - "FoodBuffsDontDecay -- Postfix on Player.UpdateFood, resets each active food's m_health/m_stamina/m_eitr to full value every tick instead of vanilla's (time-remaining/burn-time)^0.3 falloff curve, then reapplies totals via public SetMaxHealth/SetMaxStamina + private SetMaxEitr (via Traverse). Full benefit for the entire duration, cuts off only at expiry instead of tapering (deployed: true)"
+      - "AutoEquipShieldWithOneHandedWeapon -- Postfix on Humanoid.EquipItem, restricted to Player (AI humanoids share this method). If the equipped item is ItemType.OneHandedWeapon (always lands in the right hand, confirmed in EquipItem's own branching) and the left hand is empty, auto-equips a Shield from inventory. Naturally non-recursive: the shield's own re-entrant EquipItem call is ItemType.Shield, which doesn't match the guard (deployed: true)"
+      - "CameraFov / CameraMaxZoom -- Postfix on GameCamera.Awake, overrides m_fov (65) and m_maxDistance (6). CLIENT-ONLY, a headless server never instantiates GameCamera, unverified until someone actually plays (deployed at 65 / 8, mild)"
+      - "BuildRotationDegrees -- Postfix on Player.Awake, reflects into private m_placeRotationDegrees (vanilla 22.5deg = 16 steps/circle) for finer placement rotation (deployed at 11.25deg = 32 steps/circle)"
+      - "StackSizeMultiplier -- Postfix on ZNetScene.Awake, walks m_prefabs multiplying ItemDrop.ItemData.SharedData.m_maxStackSize for every stackable item (bumped 2x -> 3x for the 1.0 restart, on request)"
+      - "WorkbenchRangeMultiplier / IgnoreRoofRequirement -- same ZNetScene.Awake walk, tweaks CraftingStation.m_rangeBuild/m_discoverRange and m_craftRequireRoof (range bumped 1.5x -> 2x; roof requirement now DEFAULT-ON for the 1.0 restart, on request -- was opt-in before)"
+      - "ProductionSpeedMultiplier / ProductionCapacityMultiplier -- same walk, tweaks Smelter (m_secPerProduct/m_maxOre/m_maxFuel), Fermenter (m_fermentationDuration), Beehive (m_secPerUnit/m_maxHoney), CookingStation (m_secPerFuel) -- covers kiln/furnace/blast furnace/fermenter/beehive/cooking station from V+'s Crafting & Production section (deployed at 0.75x time / 1.5x capacity). Windmill has no equivalent production-rate field in this game version -- skipped, not a gap in the patch, a gap in what the game exposes."
+      - "FireplaceInfiniteFuel -- NEW in 0.7.1. Postfix on Fireplace.Awake, sets Fireplace.m_infiniteFuel = true. Matches Valheim Plus's [FireSource] torches/fires toggle exactly -- fire sources never consume fuel at all, no chests needed (deployed: true, default-on)"
+      - "FireplaceAutoRefuelEnabled/Range/Interval -- attaches a MonoBehaviour to every Fireplace instance (Postfix on Fireplace.Awake) that periodically Physics.OverlapSphere-scans for nearby Container inventories holding the fireplace's fuel item and calls the game's own public Fireplace.AddFuel(1f) (which already no-ops when full, so no risk of wasting fuel) -- now DEFAULT-ON for the 1.0 restart, on request (was opt-in before). Its own TryRefuel already no-ops once a fireplace has infinite fuel, so this and FireplaceInfiniteFuel don't conflict when both are on -- kept as a fallback for anyone who turns InfiniteFuel off but still wants convenience."
+      - "BuildingIgnoreSupport / BuildingIgnoreWeatherDecay -- same walk, tweaks WearNTear.m_noSupportWear/m_noRoofWear (both left off/vanilla -- opt-in, not defaulted on)"
+      - "GatheringYieldMultiplier -- same walk, scales DropTable.m_dropMin/Max on TreeBase.m_dropWhenDestroyed and MineRock/MineRock5.m_dropItems, plus Pickable.m_amount directly (deployed at 1.25x)"
+      - "InventoryFillFirstSlot -- Postfix on private Inventory.TopFirst(item), forces first-slot placement for all items when enabled (off by default -- vanilla per-item-type placement is intentional in a lot of cases)"
+      - "TamedPetsCantDie -- Prefix on Character.Damage(HitData), if the target is a tamed Tameable and the incoming hit would be lethal, scales the hit down via HitData.ApplyModifier() to leave exactly 1 HP -- off by default, opt-in"
+      - "WagonBaseMassMultiplier / WagonItemWeightMultiplier -- Postfix on Vagon.Awake, scales m_baseMass/m_itemWeightMassFactor (deployed at 1x / 0.75x -- cargo weighs carts down 25% less)"
+      - "DifficultyDamageScalePerPlayer / HealthScalePerPlayer / MaxScalingPlayers -- Postfix on Game.Awake, overrides the game's already-native player-count difficulty scaling fields directly (left at vanilla defaults 0.04 / 0.3 / 5 -- exposed for later tuning, not changed yet)"
+      - "AllowOreThroughPortals -- same ZNetScene.Awake walk, sets ItemDrop.ItemData.SharedData.m_teleportable = true (vanilla blocks ore/metal from portal travel via this field). Code default is off; SERVER IS CURRENTLY RUNNING WITH THIS SET TO TRUE (deliberately enabled, deployed via server .cfg originally on 2026-08-22, carried forward into the 1.0 restart) -- local client's own .cfg is untouched and still defaults off"
+      - "MapExploreRadiusMultiplier -- NEW in 0.7.0. Postfix on Minimap.Awake, scales Minimap.m_exploreRadius (vanilla 100) -- how much fog-of-war clears per step (deployed at 2x)"
+      - "DisableScreenShake -- NEW in 0.7.0. Prefix on GameCamera.AddShake, short-circuits the whole method when enabled. Vanilla already has its own per-client toggle for this (m_cameraShakeEnabled, read from PlatformPrefs \"CameraShake\" in GameCamera.Awake) but that's each player's own Settings menu preference, not server-enforced -- this makes it consistent for everyone regardless of their own settings (deployed: true, default-on for the 1.0 restart, on request)"
+    config_file: config/bepinex/richard.valheimqol.cfg on the gameserver
+    all_numeric_settings_have_slider_ranges: >
+      Every float/int setting carries a BepInEx AcceptableValueRange so
+      ConfigurationManager (see client_only_mods below) renders it as a
+      slider instead of a text box. Confirmed via decompiling
+      ConfigEntryBase/AcceptableValueRange: out-of-range values (e.g. from a
+      hand-edited .cfg) get silently clamped to the nearest bound, not
+      rejected -- safe against a bad push-config.sh push.
+    verified: >
+      Builds clean (0 warnings/errors) every revision so far. Loads clean
+      under BepInEx at both default and deliberately-extreme stress values
+      for every setting, restart-tested repeatedly including all toggles on
+      simultaneously -- no exceptions. User playtested locally end-to-end
+      (connected to the real server) and confirmed working: auto-pickup,
+      stamina, camera FOV/zoom, build rotation, stack size, gathering
+      yield, workbench range, production speed/capacity. NOT yet
+      playtested: TamedPetsCantDie and Wagon mass multipliers (need a
+      tamed animal / a built cart respectively -- not a bug, just not
+      reached yet in the current world). AllowOreThroughPortals is new
+      (added on request, 0.3.0) -- restart-stress-tested clean but not yet
+      playtested with an actual portal.
+    still_missing_from_v_plus: >
+      Two categories deliberately deferred, different in kind from
+      everything else here (UI work / new networking, not more Harmony
+      field patches): HUD overlays (numeric stamina/skill-exp displays,
+      in-game clock, crop-placement warnings — needs real Canvas/uGUI work,
+      not just field tweaks) and shared map/position sync (server-wide
+      player position sharing, collaborative fog-of-war — needs a new
+      RPC/ZDO sync design, this doesn't exist natively to hook into like
+      auto-pickup did). Flag if these are still wanted; they're a
+      different-shaped task than the rest of this backlog.

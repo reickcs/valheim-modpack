@@ -1,0 +1,17 @@
+# secrets / environment-specific
+.env
+
+# copyrighted third-party DLLs (see ValheimQoL-source/libs/README.md)
+ValheimQoL-source/libs/*.dll
+
+# build output
+ValheimQoL-source/bin/
+ValheimQoL-source/obj/
+
+# server runtime state (world saves, BepInEx-generated configs, logs)
+config/
+data/
+backup/
+
+.vs/
+*.user
