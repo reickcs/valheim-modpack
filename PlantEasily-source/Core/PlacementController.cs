@@ -103,8 +103,12 @@ internal sealed class PlacementController : MonoBehaviour
         GameObject clone = Instantiate(piecePrefab, position, rotation);
         TerrainModifier.SetTriggerOnPlaced(trigger: false);
 
-        // Valheim 1.0: Piece.SetCreator(long) dropped its second (platform user ID) parameter -- verified by decompile.
-        clone.GetComponent<Piece>().SetCreator(player.GetPlayerID());
+        // Piece.SetCreator(long, PlatformUserID) -- matches Player.PlacePiece's own call
+        // (component.SetCreator(GetPlayerID(), PlatformManager.DistributionPlatform.LocalUser.PlatformUserID)),
+        // verified by decompile. An earlier build had the wrong arity here because it was compiled
+        // against a stale assembly_valheim.dll snapshot -- see the Character.Message fix in the same
+        // rebuild for the sibling issue that surfaced this.
+        clone.GetComponent<Piece>().SetCreator(player.GetPlayerID(), PlatformManager.DistributionPlatform.LocalUser.PlatformUserID);
 
         Game.instance.IncrementPlayerStat(PlayerStatType.Builds);
         player.RaiseSkill(Skills.SkillType.Farming, 1f);

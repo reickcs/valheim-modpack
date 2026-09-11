@@ -287,12 +287,12 @@ namespace ConfigurationManager
         {
             private static IEnumerable<MethodBase> TargetMethods()
             {
-                // Valheim 1.0: InventoryGrid has OnLeftClick/OnRightClick (verified by
-                // decompile), not OnLeftDown/OnRightDown -- those two never existed
-                // under those names on this class in the version this was checked
-                // against. Swapped in OnRightClick for equivalent left+right coverage.
+                // InventoryGrid's left and right click handlers aren't named
+                // symmetrically (verified by decompile): OnLeftClick for left,
+                // but OnRightDown (not OnRightClick -- that name doesn't exist
+                // on this class) for right.
                 yield return AccessTools.Method(typeof(InventoryGrid), nameof(InventoryGrid.OnLeftClick));
-                yield return AccessTools.Method(typeof(InventoryGrid), nameof(InventoryGrid.OnRightClick));
+                yield return AccessTools.Method(typeof(InventoryGrid), nameof(InventoryGrid.OnRightDown));
                 yield return AccessTools.Method(typeof(InventoryGui), nameof(InventoryGui.OnSelectedItem));
                 yield return AccessTools.Method(typeof(InventoryGui), nameof(InventoryGui.OnRightClickItem));
                 yield return AccessTools.Method(typeof(Toggle), nameof(Toggle.OnSubmit));

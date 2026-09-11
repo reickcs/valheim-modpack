@@ -96,10 +96,13 @@ client_only_mods:
       day. All its snapping logic is local placement-preview UI; nothing
       for a headless server to simulate.
     build_fixes: >
-      One real Valheim 1.0 API break, found and fixed by decompile (same
-      standard as ValheimQoL): Piece.SetCreator(long, PlatformUserID)
-      dropped its second parameter in 1.0 -- now just SetCreator(long).
-      Core/PlacementController.cs line ~106.
+      Piece.SetCreator(long, PlatformUserID) -- two-param, matching
+      Player.PlacePiece's own call. An earlier post-1.0-launch build had
+      briefly dropped to SetCreator(long) after a hotfix removed the
+      second param; a later hotfix restored it. Confirmed against a fresh
+      decompile each time rather than assumed -- Iron Gate's post-launch
+      API surface has moved more than once. Core/PlacementController.cs
+      line ~107.
 
   - namespace: shudnal
     name: ConfigurationManager
