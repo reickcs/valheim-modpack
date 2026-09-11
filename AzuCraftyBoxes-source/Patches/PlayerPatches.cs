@@ -414,6 +414,7 @@ static class CheckNearbyForOneIngredientItems
                 continue;
 
             string reqName = resource.m_resItem.m_itemData.m_shared.m_name;
+            string reqPrefabName = resource.m_resItem.name;
             int requiredAmount = resource.GetAmount(qualityLevel) * craftMultiplier;
 
 
@@ -422,6 +423,9 @@ static class CheckNearbyForOneIngredientItems
 
             foreach (IContainer? container in nearbyContainers)
             {
+                if (!Boxes.CanItemBePulled(container.GetPrefabName(), reqPrefabName))
+                    continue;
+
                 int containerAmount = container.ItemCount(reqName);
                 if (containerAmount <= 0)
                     continue;

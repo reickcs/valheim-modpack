@@ -228,50 +228,15 @@ public class Boxes
 
     public static bool CanItemBePulled(string container, string prefab, string stationName = "")
     {
-        if (AzuCraftyBoxesPlugin.yamlData == null)
-        {
-            AzuCraftyBoxesPlugin.AzuCraftyBoxesLogger.LogError("yamlData is null. Make sure to call DeserializeYamlFile() before using CanItemBePulled.");
-            return false;
-        }
-
-        if (!string.IsNullOrWhiteSpace(CachedStationName))
-        {
-            stationName = CachedStationName;
-        }
-
-        // -----------------------------------------------------------------------
-        // 1) Check stationName first (if not empty)
-        // -----------------------------------------------------------------------
-        if (!string.IsNullOrWhiteSpace(stationName) && AzuCraftyBoxesPlugin.yamlData.TryGetValue(stationName, out Dictionary<string, List<string>>? stationData))
-        {
-            // Apply station include/exclude logic
-            bool stationPass = PassesIncludeExcludeChecks(stationData, prefab);
-
-            if (!stationPass)
-            {
-                // If the station explicitly excludes this item,
-                // we can return false immediately, no need to check container
-                return false;
-            }
-            // If station passed (i.e. not excluded), we still continue
-            // to container checks.
-            // (If you prefer station "includeOverride" to skip container checks,
-            // you can detect that here and return true. But that changes logic.)
-        }
-
-        // -----------------------------------------------------------------------
-        // 2) Now apply container filters
-        // -----------------------------------------------------------------------
-        // If container is NOT in yaml, we allow by default
-        if (!AzuCraftyBoxesPlugin.yamlData.TryGetValue(container, out Dictionary<string, List<string>>? containerData))
-        {
-            // Container not found => allow pulling
-            return true;
-        }
-
-        // Check container include/exclude logic
-        bool containerPass = PassesIncludeExcludeChecks(containerData, prefab);
-        return containerPass;
+        // This modpack's policy: every item, from every container, at every
+        // crafting station, all the time -- no per-container/per-item
+        // allow-lists. The upstream yaml exclude/includeOverride system
+        // (still loaded/parsed above for any other consumer of yamlData) is
+        // deliberately bypassed here rather than edited, since the yaml is
+        // freshly regenerated from this plugin's own embedded default on
+        // every fresh install -- a code-level bypass is what actually
+        // reaches every player, not a locally-edited config file.
+        return true;
     }
 
 

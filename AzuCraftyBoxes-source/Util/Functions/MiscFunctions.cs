@@ -64,9 +64,13 @@ public class MiscFunctions
             }
 
 
+            string itemPrefabName = requirement.m_resItem.name;
+
             for (int i = 0; i < nearbyContainers.Count && needed > 0; ++i)
             {
                 var c = nearbyContainers[i];
+                if (!Boxes.CanItemBePulled(c.GetPrefabName(), itemPrefabName)) continue;
+
                 int have = c.ItemCount(name);
                 int allowed = Boxes.CheckAndDecrement(have);
                 if (allowed <= 0) continue;
