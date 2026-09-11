@@ -30,7 +30,11 @@ game_version_target: 1.0  # Deep North launch
 # not fixable from our side, just Iron Gate not having pushed the matching
 # server build yet. Update deliberately with the script above once one's
 # actually available, not by polling in a live session.
-pinned_server_buildid: 25185644  # depot 896660, as of 2026-09-10
+pinned_server_buildid: 25253791  # depot 896660, as of 2026-09-11 -- updated via
+# scripts/update-server-game.sh; server's own reported network version is
+# still 36 even on this newest available server-depot build, vs. the client's
+# network version 40 (Valheim l-0.221.12/1.0.12) -- Iron Gate's server depot
+# hasn't caught up yet. Not fixable from our side; re-check periodically.
 
 mods:
   - namespace: Azumatt

@@ -96,8 +96,26 @@ try {
     Copy-Item (Join-Path $bepinexExtract "winhttp.dll") $ValheimDir -Force
     Copy-Item (Join-Path $bepinexExtract "doorstop_config.ini") $ValheimDir -Force
     $bepinexCore = Join-Path $ValheimDir "BepInEx"
+
+    # BepInEx\config holds every plugin's tuned .cfg (and BepInEx\config\Azumatt.AzuCraftyBoxes.yml) --
+    # back it up before the wholesale delete+replace below, then restore it, so re-running this
+    # installer (e.g. to pick up a new mod version) doesn't silently reset all your settings back
+    # to plugin defaults. Character/world saves are never at risk here regardless -- those live in
+    # %userprofile%\AppData\LocalLow\IronGate\Valheim\, which this script never touches.
+    $configBackup = Join-Path $TempDir "config-backup"
+    $existingConfig = Join-Path $bepinexCore "config"
+    if (Test-Path $existingConfig) {
+        Copy-Item $existingConfig $configBackup -Recurse -Force
+    }
+
     if (Test-Path $bepinexCore) { Remove-Item $bepinexCore -Recurse -Force }
     Copy-Item (Join-Path $bepinexExtract "BepInEx") $ValheimDir -Recurse -Force
+
+    if (Test-Path $configBackup) {
+        Copy-Item $configBackup $existingConfig -Recurse -Force
+        Write-Ok "Restored your existing plugin settings (BepInEx\config)"
+    }
+
     Write-Ok "BepInEx installed"
 } catch {
     Write-Host ""
