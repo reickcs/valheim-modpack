@@ -41,12 +41,24 @@ public class MiscFunctions
     }
 
     /* Consume Resources */
-    internal static void ProcessRequirements(Piece.Requirement[] requirements, int qualityLevel, Inventory pInventory, List<IContainer> nearbyContainers, int itemQuality, int multiplier)
+    internal static void ProcessRequirements(Piece.Requirement[] requirements, int qualityLevel, Inventory pInventory, List<IContainer> nearbyContainers, int itemQuality, int multiplier, CraftingStation? currentCraftingStation)
     {
         UiItemBank.Begin(nearbyContainers);
 
         foreach (var requirement in requirements)
         {
+            // Upgrader-only requirement entries only apply when crafting at
+            // an upgrader station -- see the matching comment in
+            // PlayerPatches.cs' HaveRequirementItems. Vanilla's own
+            // ConsumeResources skips them the same way; without this, this
+            // Prefix fully replaces vanilla's ConsumeResources and would
+            // otherwise just silently no-op on such an entry instead of
+            // matching vanilla's actual (correct) behavior.
+            if ((currentCraftingStation != null && currentCraftingStation.m_upgrader != requirement.m_upgraderResource)
+                || (currentCraftingStation == null && requirement.m_upgraderResource))
+            {
+                continue;
+            }
             if (!IsValidRequirement(requirement)) continue;
 
             int needed = requirement.GetAmount(qualityLevel) * multiplier;

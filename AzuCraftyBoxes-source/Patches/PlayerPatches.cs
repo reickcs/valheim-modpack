@@ -45,9 +45,18 @@ static class PlayerHaveRequirementsPatch
             if (nearbyContainers.Count == 0)
                 return;
 
+            // See the matching comment in PlayerHaveRequirementsPatchRBoolInt.HaveRequirementItems --
+            // upgrader-only requirement entries only apply at an upgrader station.
+            CraftingStation currentCraftingStation = __instance.GetCurrentCraftingStation();
+
             bool cando = false;
             foreach (Piece.Requirement requirement in piece.m_resources)
             {
+                if ((currentCraftingStation != null && currentCraftingStation.m_upgrader != requirement.m_upgraderResource)
+                    || (currentCraftingStation == null && requirement.m_upgraderResource))
+                {
+                    continue;
+                }
                 if (!requirement.m_resItem) continue;
                 bool proceed = MiscFunctions.CheckItemDropIntegrity(requirement.m_resItem);
                 if (!proceed) continue;
@@ -165,71 +174,85 @@ static class PlayerHaveRequirementsPatchRBoolInt
         if (p == null)
             return false;
 
+        // Recipe.m_resources can carry entries flagged m_upgraderResource --
+        // these only apply when crafting at an "upgrader" station (the
+        // Upgrade tab), not a normal Craft. Vanilla's own Player.
+        // HaveRequirementItems skips them with this exact condition; without
+        // it, a recipe with such an entry can never pass here (it's not a
+        // real collectible item, inventory+containers always read 0 for it),
+        // which silently blocks every recipe that has one -- including ones
+        // whose real materials are otherwise fully available.
+        CraftingStation currentCraftingStation = p.GetCurrentCraftingStation();
+
         List<IContainer>? nearbyContainers = null;
 
         foreach (Piece.Requirement resource in piece.m_resources)
         {
-            if (resource.m_resItem)
+            if ((currentCraftingStation != null && currentCraftingStation.m_upgrader != resource.m_upgraderResource)
+                || (currentCraftingStation == null && resource.m_upgraderResource)
+                || !resource.m_resItem)
             {
-                if (discover)
+                continue;
+            }
+
+            if (discover)
+            {
+                if (resource.m_amount > 0)
                 {
-                    if (resource.m_amount > 0)
+                    if (piece.m_requireOnlyOneIngredient)
                     {
-                        if (piece.m_requireOnlyOneIngredient)
-                        {
-                            if (p.m_knownMaterial.Contains(resource.m_resItem.m_itemData.m_shared.m_name))
-                                return true;
-                        }
-                        else if (!p.m_knownMaterial.Contains(resource.m_resItem.m_itemData.m_shared.m_name))
-                            return false;
+                        if (p.m_knownMaterial.Contains(resource.m_resItem.m_itemData.m_shared.m_name))
+                            return true;
                     }
+                    else if (!p.m_knownMaterial.Contains(resource.m_resItem.m_itemData.m_shared.m_name))
+                        return false;
                 }
-                else
+            }
+            else
+            {
+                string sharedName = resource.m_resItem.m_itemData.m_shared.m_name;
+                int amount = resource.GetAmount(qualityLevel) * amountVanilla;
+                int num = p.m_inventory.CountItems(sharedName);
+
+                // Only check containers if inventory doesn't have enough
+                if (num < amount)
                 {
-                    string sharedName = resource.m_resItem.m_itemData.m_shared.m_name;
-                    int amount = resource.GetAmount(qualityLevel) * amountVanilla;
-                    int num = p.m_inventory.CountItems(sharedName);
+                    nearbyContainers ??= Boxes.QueryFrame.Get(p, AzuCraftyBoxesPlugin.mRange.Value);
 
-                    // Only check containers if inventory doesn't have enough
-                    if (num < amount)
+                    resource.m_resItem.m_itemData.m_dropPrefab = resource.m_resItem.gameObject;
+                    if (resource.m_resItem.m_itemData.m_dropPrefab != null)
                     {
-                        nearbyContainers ??= Boxes.QueryFrame.Get(p, AzuCraftyBoxesPlugin.mRange.Value);
+                        string itemPrefabName = resource.m_resItem.name;
 
-                        resource.m_resItem.m_itemData.m_dropPrefab = resource.m_resItem.gameObject;
-                        if (resource.m_resItem.m_itemData.m_dropPrefab != null)
+                        foreach (IContainer c in nearbyContainers)
                         {
-                            string itemPrefabName = resource.m_resItem.name;
+                            if (c == null) continue;
+                            if (string.IsNullOrWhiteSpace(c.GetPrefabName())) continue;
+                            if (!Boxes.CanItemBePulled(c.GetPrefabName(), itemPrefabName)) continue;
 
-                            foreach (IContainer c in nearbyContainers)
+                            try
                             {
-                                if (c == null) continue;
-                                if (string.IsNullOrWhiteSpace(c.GetPrefabName())) continue;
-                                if (!Boxes.CanItemBePulled(c.GetPrefabName(), itemPrefabName)) continue;
-
-                                try
-                                {
-                                    c.ContainsItem(sharedName, 1, out int result);
-                                    result = Boxes.CheckAndDecrement(result);
-                                    num += result;
-                                    if (num >= amount)
-                                        break;
-                                }
-                                catch
-                                {
-                                    // ignored
-                                }
+                                c.ContainsItem(sharedName, 1, out int result);
+                                result = Boxes.CheckAndDecrement(result);
+                                num += result;
+                                if (num >= amount)
+                                    break;
+                            }
+                            catch
+                            {
+                                // ignored
                             }
                         }
                     }
-
-                    if (piece.m_requireOnlyOneIngredient)
-                    {
-                        if (num >= amount)
-                            return true;
-                    }
-                    else if (num < amount)
-                        return false;
                 }
+
+                if (piece.m_requireOnlyOneIngredient)
+                {
+                    if (num >= amount)
+                        return true;
+                }
+                else if (num < amount)
+                    return false;
             }
         }
 
@@ -375,7 +398,7 @@ static class ConsumeResourcesPatch
 
             Inventory pInventory = __instance.GetInventory();
             List<IContainer> nearbyContainers = Boxes.QueryFrame.Get(__instance, AzuCraftyBoxesPlugin.mRange.Value);
-            MiscFunctions.ProcessRequirements(requirements, qualityLevel, pInventory, nearbyContainers, itemQuality, multiplier);
+            MiscFunctions.ProcessRequirements(requirements, qualityLevel, pInventory, nearbyContainers, itemQuality, multiplier, __instance.GetCurrentCraftingStation());
         }
         catch (Exception ex)
         {
@@ -408,8 +431,17 @@ static class CheckNearbyForOneIngredientItems
             return;
         }
 
+        // See the matching comment in PlayerHaveRequirementsPatchRBoolInt.HaveRequirementItems --
+        // upgrader-only requirement entries only apply at an upgrader station.
+        CraftingStation currentCraftingStation = __instance.GetCurrentCraftingStation();
+
         foreach (Piece.Requirement resource in recipe.m_resources)
         {
+            if ((currentCraftingStation != null && currentCraftingStation.m_upgrader != resource.m_upgraderResource)
+                || (currentCraftingStation == null && resource.m_upgraderResource))
+            {
+                continue;
+            }
             if (!resource.m_resItem)
                 continue;
 
