@@ -41,8 +41,8 @@ namespace AzuCraftyBoxes.Util.Functions
             _leaveOne = AzuCraftyBoxesPlugin.leaveOne.Value.isOn();
         }
 
-        /// <summary>Total available of shared name (any quality); includes player + containers, with "leave one" applied once per container.</summary>
-        public static int GetTotalAnyQuality(string sharedName)
+        /// <summary>Total available of shared name (any quality); includes player + containers whose yaml config allows pulling this item, with "leave one" applied once per counted container.</summary>
+        public static int GetTotalAnyQuality(string sharedName, string itemPrefabName)
         {
             int hash = sharedName.GetStableHashCode();
             var key = new Key(hash, 0);
@@ -56,6 +56,7 @@ namespace AzuCraftyBoxes.Util.Functions
             {
                 var c = _containers[i];
                 if (c == null) continue;
+                if (!Boxes.CanItemBePulled(c.GetPrefabName(), itemPrefabName)) continue;
 
                 int count = c.ItemCount(sharedName);
                 if (count <= 0) continue;
@@ -72,8 +73,8 @@ namespace AzuCraftyBoxes.Util.Functions
             return total;
         }
 
-        /// <summary>Total available of shared name at a specific quality; includes player + containers, with "leave one" applied once per container that has that quality.</summary>
-        public static int GetTotalAtQuality(string sharedName, int quality)
+        /// <summary>Total available of shared name at a specific quality; includes player + containers whose yaml config allows pulling this item, with "leave one" applied once per counted container.</summary>
+        public static int GetTotalAtQuality(string sharedName, int quality, string itemPrefabName)
         {
             int hash = sharedName.GetStableHashCode();
             var key = new Key(hash, quality);
@@ -86,6 +87,7 @@ namespace AzuCraftyBoxes.Util.Functions
             {
                 var c = _containers[i];
                 if (c == null) continue;
+                if (!Boxes.CanItemBePulled(c.GetPrefabName(), itemPrefabName)) continue;
 
                 if (!c.ContainsItem(sharedName, quality, out int amount) || amount <= 0)
                     continue;

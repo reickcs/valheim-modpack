@@ -45,7 +45,7 @@ public class HUDPatches
                 if (r == null || !r.m_resItem || r.m_amount <= 0 || r.m_resItem.m_itemData?.m_shared == null) continue;
 
                 string name = r.m_resItem.m_itemData.m_shared.m_name;
-                int have = UiItemBank.GetTotalAnyQuality(name);
+                int have = UiItemBank.GetTotalAnyQuality(name, r.m_resItem.name);
                 int canDo = have / r.m_amount;
                 if (canDo < crafts) crafts = canDo;
                 if (crafts == 0) break;

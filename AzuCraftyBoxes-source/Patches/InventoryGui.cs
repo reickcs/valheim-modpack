@@ -40,8 +40,12 @@ static class InventoryGuiSetupRequirementPatch
 
         string sharedName = req.m_resItem.m_itemData.m_shared.m_name;
 
-        // Count once via bank
-        int have = UiItemBank.GetTotalAnyQuality(sharedName);
+        // Count once via bank -- prefab name needed so the bank applies the
+        // same yaml pull rules the actual craft gate does (PlayerPatches.cs'
+        // HaveRequirementItems); otherwise this can flash "available" for an
+        // item a chest's config excludes, while the Craft button stays
+        // disabled because the gate correctly filtered it out.
+        int have = UiItemBank.GetTotalAnyQuality(sharedName, req.m_resItem.name);
 
         if (have >= amount)
         {
