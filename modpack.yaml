@@ -40,7 +40,7 @@ game_version_target: 1.0  # Deep North launch
 # PlantEasily-source/PlantEasily.cs, ConfigurationManager-source/
 # ConfigurationManager.cs). A version mismatch anywhere now means
 # exactly one thing: that player doesn't have the current release.
-modpack_version: 10.0.0  # <-> GitHub release v10
+modpack_version: 11.0.0  # <-> GitHub release v11
 
 # The base game (not just mods) is pinned too, deliberately not
 # auto-updating -- see docker-compose.yml's UPDATE_CRON comment and
@@ -117,6 +117,29 @@ mods:
       containers, on request -- narrows the item-lock feature's scope to
       just the one push path, since that became the only way an item
       leaves inventory automatically.
+
+# windows-installer/install.ps1 config preservation: the v6 backup/restore
+# logic (added so re-running the installer over an existing setup doesn't
+# wipe a player's tuned .cfg files) had a real bug found 2026-09-12 during
+# an installer audit -- the restore step (Copy-Item $configBackup
+# $existingConfig -Recurse -Force) ran against a destination that already
+# existed (BepInEx\config, freshly recreated by the BepInEx re-extract a
+# few lines earlier), and PowerShell's Copy-Item -Recurse nests the whole
+# source folder inside an existing destination instead of merging its
+# contents -- so the backed-up files landed in
+# BepInEx\config\config-backup\*.cfg instead of overwriting the fresh
+# defaults, and the script still printed "OK: Restored your existing
+# plugin settings" because the copy itself didn't error, it just went to
+# the wrong place. Confirmed via an isolated end-to-end test harness (real
+# install run against a scratch Valheim dir, hash/content-verified before
+# and after). Fixed by copying configBackup's *contents* (configBackup\*)
+# onto the existing destination instead of the folder itself, which
+# correctly merges/overwrites. Re-verified the same re-install scenario
+# afterward by reading the config files back, not just trusting the
+# script's own success message. Also expanded the final verification
+# checklist to cover all four plugin DLLs (previously only checked
+# ValheimQoL and AzuCraftyBoxes, so a PlantEasily/ConfigurationManager
+# copy failure could have silently reported "Install complete").
 
 # Server-side character storage: previously Smoothbrain/ServerCharacters,
 # REMOVED because its source has no license on GitHub -- couldn't legally
@@ -230,7 +253,7 @@ custom_plugins:
   # (two separate live copies when BEPINEX=true -- see SETUP.md gotchas),
   # then `docker compose restart`.
   - name: ValheimQoL
-    version: 10.0.0  # tracks modpack_version above, not an independent number as of 2026-09-12
+    version: 11.0.0  # tracks modpack_version above, not an independent number as of 2026-09-12
     purpose: >
       Recreates most of the original Valheim Plus feature set as standalone
       Harmony patches, verified against decompiled assembly_valheim.dll

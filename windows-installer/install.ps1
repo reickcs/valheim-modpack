@@ -112,7 +112,12 @@ try {
     Copy-Item (Join-Path $bepinexExtract "BepInEx") $ValheimDir -Recurse -Force
 
     if (Test-Path $configBackup) {
-        Copy-Item $configBackup $existingConfig -Recurse -Force
+        # $existingConfig already exists at this point (just recreated by the fresh
+        # BepInEx copy above). Copy-Item -Recurse onto an EXISTING destination nests
+        # the source folder inside it instead of merging its contents -- copying the
+        # *contents* (configBackup\*) is what actually overwrites the fresh defaults
+        # with the backed-up files.
+        Copy-Item (Join-Path $configBackup "*") $existingConfig -Recurse -Force
         Write-Ok "Restored your existing plugin settings (BepInEx\config)"
     }
 
@@ -148,6 +153,8 @@ $checks = @(
     @{ path = (Join-Path $ValheimDir "BepInEx\core\BepInEx.dll"); label = "BepInEx core" }
     @{ path = (Join-Path $PluginsDir "richard-ValheimQoL\ValheimQoL.dll"); label = "ValheimQoL plugin" }
     @{ path = (Join-Path $PluginsDir "Azumatt-AzuCraftyBoxes\AzuCraftyBoxes.dll"); label = "AzuCraftyBoxes plugin" }
+    @{ path = (Join-Path $PluginsDir "Advize-PlantEasily\Advize_PlantEasily.dll"); label = "PlantEasily plugin" }
+    @{ path = (Join-Path $PluginsDir "shudnal-ConfigurationManager\ConfigurationManager.dll"); label = "ConfigurationManager plugin" }
 )
 $allGood = $true
 foreach ($c in $checks) {

@@ -11,7 +11,7 @@ public sealed class PlantEasily : BaseUnityPlugin
 {
     public const string PluginID = "advize.PlantEasily";
     public const string PluginName = "PlantEasily";
-    public const string Version = "10.0.0";
+    public const string Version = "11.0.0";
 
     public void Awake()
     {
