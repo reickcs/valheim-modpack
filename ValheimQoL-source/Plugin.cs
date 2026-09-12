@@ -11,7 +11,7 @@ namespace ValheimQoL
     {
         public const string PluginGUID = "richard.valheimqol";
         public const string PluginName = "ValheimQoL";
-        public const string PluginVersion = "0.10.0";
+        public const string PluginVersion = "9.0.0";
 
         // Every ConfigEntry below is wrapped in _configSync.AddConfigEntry, which
         // makes the server the source of truth once a client connects to one --

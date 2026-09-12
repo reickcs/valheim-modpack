@@ -19,6 +19,29 @@
 last_checked: 2026-09-10
 game_version_target: 1.0  # Deep North launch
 
+# Single unified version for the whole pack, decided 2026-09-12. Every
+# vendored mod kept its own upstream version number independently before
+# this (ValheimQoL 0.10.0, AzuCraftyBoxes 1.8.15, PlantEasily 2.2.0,
+# ConfigurationManager 1.1.17) -- harmless on its own, but it meant a
+# fix to any one mod left its version number completely unchanged
+# (nothing to bump to), so there was no way to tell "am I on the fixed
+# build or the old one" without hashing the actual DLL. Concretely bit
+# us tracking down a friend's AzuCraftyBoxes bug: the version string in
+# the BepInEx console would have read identically whether he had
+# today's fix or a build from two days ago.
+#
+# Going forward: this repo is the sole owner of all four mods now (each
+# still credits its original upstream author/license per-entry below,
+# but nothing here still tracks upstream release numbers) -- so all four
+# share ONE version number, bumped together on every release, kept in
+# lockstep with the GitHub release tag: release vN <-> internal version
+# N.0.0 in all four PluginVersion/ModVersion/Version constants
+# (ValheimQoL-source/Plugin.cs, AzuCraftyBoxes-source/Plugin.cs,
+# PlantEasily-source/PlantEasily.cs, ConfigurationManager-source/
+# ConfigurationManager.cs). A version mismatch anywhere now means
+# exactly one thing: that player doesn't have the current release.
+modpack_version: 9.0.0  # <-> GitHub release v9
+
 # The base game (not just mods) is pinned too, deliberately not
 # auto-updating -- see docker-compose.yml's UPDATE_CRON comment and
 # scripts/update-server-game.sh. Steam's client depot (892970) and
@@ -184,7 +207,7 @@ custom_plugins:
   # (two separate live copies when BEPINEX=true -- see SETUP.md gotchas),
   # then `docker compose restart`.
   - name: ValheimQoL
-    version: 0.10.0
+    version: 9.0.0  # tracks modpack_version above, not an independent number as of 2026-09-12
     purpose: >
       Recreates most of the original Valheim Plus feature set as standalone
       Harmony patches, verified against decompiled assembly_valheim.dll
