@@ -91,7 +91,16 @@ namespace ValheimQoL.Patches
                         if (prodCapMult != 1f)
                         {
                             smelter.m_maxOre = Mathf.Max(1, Mathf.RoundToInt(smelter.m_maxOre * prodCapMult));
-                            smelter.m_maxFuel = Mathf.Max(1, Mathf.RoundToInt(smelter.m_maxFuel * prodCapMult));
+                            // m_maxFuel == 0 means "this station doesn't use fuel at all" (e.g.
+                            // the Charcoal Kiln, self-fueled by the wood it converts) -- decompile-
+                            // confirmed via Smelter's own `m_maxFuel != 0` gate on its production
+                            // check. Only scale it if the station already uses fuel; Max(1, ...)
+                            // unconditionally was forcing a fuel requirement onto kilns that vanilla
+                            // never gave one, and nothing can ever fill it, permanently blocking them.
+                            if (smelter.m_maxFuel > 0)
+                            {
+                                smelter.m_maxFuel = Mathf.Max(1, Mathf.RoundToInt(smelter.m_maxFuel * prodCapMult));
+                            }
                         }
                     }
 
