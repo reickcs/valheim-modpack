@@ -228,7 +228,7 @@ static class SmelterOnAddOrePatch
                 inventory.RemoveItem(itemConversion.m_from.m_itemData.m_shared.m_name, amount);
 
                 for (int i = 0; i < amount; ++i)
-                    ___m_nview.InvokeRPC("RPC_AddOre", newItem.m_dropPrefab.name);
+                    ___m_nview.InvokeRPC("RPC_AddOre", newItem.m_dropPrefab.name, false);
 
                 user.Message(MessageHud.MessageType.TopLeft, $"$msg_added {amount} {name}");
                 if (ore >= __instance.m_maxOre)
@@ -261,7 +261,7 @@ static class SmelterOnAddOrePatch
                     c.Save();
 
                     for (int i = 0; i < amount; ++i)
-                        ___m_nview.InvokeRPC("RPC_AddOre", prefabName);
+                        ___m_nview.InvokeRPC("RPC_AddOre", prefabName, false);
 
                     user.Message(MessageHud.MessageType.TopLeft, $"$msg_added {amount} {name}");
 

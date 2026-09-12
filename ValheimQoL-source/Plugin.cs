@@ -93,6 +93,9 @@ namespace ValheimQoL
         // Player - Camera
         public static SyncedConfigEntry<bool> DisableScreenShake;
 
+        // Player - Guardian Power
+        public static SyncedConfigEntry<bool> GuardianPowerCooldownMatchesDuration;
+
         // Server - Game Difficulty
         public static SyncedConfigEntry<float> DifficultyDamageScalePerPlayer;
         public static SyncedConfigEntry<float> DifficultyHealthScalePerPlayer;
@@ -280,6 +283,10 @@ namespace ValheimQoL
             DisableScreenShake = _configSync.AddConfigEntry(Config.Bind(
                 "Player - Camera", "DisableScreenShake", true,
                 "If true, forces camera shake off (hits, explosions, etc.) regardless of each player's own in-game Settings > Game > Camera Shake preference. Vanilla already exposes a per-client toggle for this; this setting makes it consistent for everyone connected."));
+
+            GuardianPowerCooldownMatchesDuration = _configSync.AddConfigEntry(Config.Bind(
+                "Player - Guardian Power", "CooldownMatchesDuration", true,
+                "If true, a boss power's (Eikthyr, The Elder, etc.) cooldown is set equal to its own active duration, instead of vanilla's longer cooldown -- as soon as the effect ends, it's ready to use again. Applies to whichever power the player currently has equipped, whatever that is; no per-boss list needed."));
 
             ServerCharacterStorageEnabled = _configSync.AddConfigEntry(Config.Bind(
                 "Server - Character Storage", "Enabled", false,
