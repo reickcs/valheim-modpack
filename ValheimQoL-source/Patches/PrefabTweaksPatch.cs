@@ -54,7 +54,12 @@ namespace ValheimQoL.Patches
                         if (rangeMult != 1f)
                         {
                             station.m_rangeBuild *= rangeMult;
-                            station.m_discoverRange *= rangeMult;
+                            // Set equal to the scaled build range rather than scaling
+                            // discoverRange from its own (smaller) vanilla base -- vanilla
+                            // defaults are m_rangeBuild=10, m_discoverRange=4, so even at
+                            // the same multiplier they'd never actually match. One range
+                            // covering both discovery and building, on request.
+                            station.m_discoverRange = station.m_rangeBuild;
                         }
                         if (ignoreRoof)
                         {

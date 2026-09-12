@@ -1,3 +1,4 @@
+using AzuCraftyBoxes.Util;
 using AzuCraftyBoxes.Util.Functions;
 
 namespace AzuCraftyBoxes.IContainers;
@@ -74,6 +75,38 @@ public class VanillaContainer(Container _container) : IContainer
     public Vector3 GetPosition() => _container.transform.position;
     public string GetPrefabName() => Utils.GetPrefabName(_container.gameObject);
     public Inventory GetInventory() => _container.GetInventory();
+
+    public int PushMatchingStacks(Inventory playerInventory)
+    {
+        Inventory cInventory = _container.GetInventory();
+        if (cInventory == null) return 0;
+
+        // Mirrors vanilla's own Inventory.StackAll (ContainsItemByName +
+        // IsItemEquiped + AddItem/RemoveItem, decompile-confirmed) but with
+        // a lock check added -- StackAll itself has no way to skip an item,
+        // so it can't be reused once locking is a thing. Iterating a copy of
+        // GetAllItems() since we mutate playerInventory (RemoveItem) while
+        // walking it.
+        int moved = 0;
+        foreach (ItemDrop.ItemData item in new List<ItemDrop.ItemData>(playerInventory.GetAllItems()))
+        {
+            if (ItemLock.IsLocked(item)) continue;
+            if (!cInventory.ContainsItemByName(item.m_shared.m_name)) continue;
+            if (Player.m_localPlayer != null && Player.m_localPlayer.IsItemEquiped(item)) continue;
+            if (!cInventory.AddItem(item)) continue;
+
+            playerInventory.RemoveItem(item);
+            moved++;
+        }
+
+        if (moved > 0)
+        {
+            cInventory.Changed();
+            playerInventory.Changed();
+            Save();
+        }
+        return moved;
+    }
 
 
     public static VanillaContainer Create(Container container) => new(container);

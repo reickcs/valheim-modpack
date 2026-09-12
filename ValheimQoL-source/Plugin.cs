@@ -11,7 +11,7 @@ namespace ValheimQoL
     {
         public const string PluginGUID = "richard.valheimqol";
         public const string PluginName = "ValheimQoL";
-        public const string PluginVersion = "9.0.0";
+        public const string PluginVersion = "10.0.0";
 
         // Every ConfigEntry below is wrapped in _configSync.AddConfigEntry, which
         // makes the server the source of truth once a client connects to one --
@@ -53,6 +53,7 @@ namespace ValheimQoL
         // Crafting & Production - Workbench
         public static SyncedConfigEntry<float> WorkbenchRangeMultiplier;
         public static SyncedConfigEntry<bool> WorkbenchIgnoreRoofRequirement;
+        public static SyncedConfigEntry<bool> AutoRepairAllOnInteract;
 
         // Crafting & Production - Smelter/Fermenter/Beehive/CookingStation
         public static SyncedConfigEntry<float> ProductionSpeedMultiplier;
@@ -171,14 +172,18 @@ namespace ValheimQoL
                     new AcceptableValueRange<float>(1f, 45f))));
 
             WorkbenchRangeMultiplier = _configSync.AddConfigEntry(Config.Bind(
-                "Crafting - Workbench", "RangeMultiplier", 2f,
+                "Crafting - Workbench", "RangeMultiplier", 4f,
                 new ConfigDescription(
-                    "Multiplier applied to every crafting station's build/discover range. 1 = vanilla.",
+                    "Multiplier applied to every crafting station's build range (vanilla base 10m). Discover range (vanilla base 4m, how far away a station registers as usable at all) is set equal to the scaled build range rather than scaled independently, so one distance covers both. 1 = vanilla.",
                     new AcceptableValueRange<float>(0.5f, 5f))));
 
             WorkbenchIgnoreRoofRequirement = _configSync.AddConfigEntry(Config.Bind(
                 "Crafting - Workbench", "IgnoreRoofRequirement", true,
                 "If true, crafting stations that normally require a roof (forge, workbench, etc.) can be used without one."));
+
+            AutoRepairAllOnInteract = _configSync.AddConfigEntry(Config.Bind(
+                "Crafting - Workbench", "AutoRepairAllOnInteract", true,
+                "If true, interacting with a crafting station ('E' to connect, not the Repair button) repairs every repairable, damaged item in inventory at once -- vanilla's own RepairOneItem() only fixes one item per click. InventoryGui.CanRepair's gating logic reimplemented directly here (decompile-verified), independent of any InventoryGui instance."));
 
             ProductionSpeedMultiplier = _configSync.AddConfigEntry(Config.Bind(
                 "Crafting - Production Buildings", "SpeedMultiplier", 1f,

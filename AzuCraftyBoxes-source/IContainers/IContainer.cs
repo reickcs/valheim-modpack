@@ -9,6 +9,11 @@ public interface IContainer
     public void Save();
     public string GetPrefabName();
     public Inventory? GetInventory();
+
+    // Reverse of pulling: moves stacks from playerInventory into this
+    // container for every item type the container already contains --
+    // returns how many item stacks were moved.
+    public int PushMatchingStacks(Inventory playerInventory);
 }
 
 static class IContainerExtensions

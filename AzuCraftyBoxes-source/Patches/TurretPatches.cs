@@ -52,22 +52,9 @@ static class Turret_UseItem_Patch
         __result = true;
         int added = 0;
 
-        if (pullAll && inventory.HaveItem(sharedName))
-        {
-            int amount = (int)Mathf.Min(__instance.m_maxAmmo - ammo, inventory.CountItems(sharedName));
-            if (amount > 0)
-            {
-                inventory.RemoveItem(sharedName, amount);
-                inventory.Changed();
-                for (int i = 0; i < amount; ++i)
-                    ___m_nview.InvokeRPC("RPC_AddAmmo", ammoType);
-
-                ammo += amount;
-                added += amount;
-                user.Message(MessageHud.MessageType.TopLeft, Localization.instance.Localize("$msg_fireadding", sharedName));
-            }
-        }
-
+        // Fill-all (Shift+E) only ever pulls from nearby containers now, never
+        // from the player's own inventory -- see the matching comment in
+        // SmelterOnAddOrePatch.
         if (ammo < __instance.m_maxAmmo)
         {
             List<IContainer> nearbyContainers = Boxes.QueryFrame.Get(__instance, AzuCraftyBoxesPlugin.mRange.Value);

@@ -1,4 +1,5 @@
 using HarmonyLib;
+using UnityEngine;
 
 namespace ValheimQoL.Patches
 {
@@ -12,7 +13,33 @@ namespace ValheimQoL.Patches
     [HarmonyPatch(typeof(Player), "UpdateFood")]
     internal static class FoodBuffPatch
     {
-        private static void Postfix(Player __instance)
+        private static readonly AccessTools.FieldRef<Player, float> StaminaRef =
+            AccessTools.FieldRefAccess<Player, float>("m_stamina");
+        private static readonly AccessTools.FieldRef<Player, float> EitrRef =
+            AccessTools.FieldRefAccess<Player, float>("m_eitr");
+
+        // Vanilla's own SetMaxHealth/SetMaxStamina/SetMaxEitr clamp the
+        // *current* value down whenever the new max is lower, but never
+        // restore it afterward. Every tick, vanilla itself briefly sets max
+        // to the decayed (lower) value BEFORE this postfix corrects it back
+        // to full -- which silently clips the player's real current health/
+        // stamina/eitr down to that transient low max, permanently, even
+        // though the max a moment later says otherwise. Captured here
+        // (Prefix, before vanilla's clamp runs) and restored in the Postfix
+        // once the real max is back to full, so a food nearing expiry no
+        // longer visibly saws the player's current stats up and down.
+        private static void Prefix(Player __instance, out (float health, float stamina, float eitr) __state)
+        {
+            if (!ValheimQoLPlugin.FoodBuffsDontDecay.Value)
+            {
+                __state = default;
+                return;
+            }
+
+            __state = (__instance.GetHealth(), StaminaRef(__instance), EitrRef(__instance));
+        }
+
+        private static void Postfix(Player __instance, (float health, float stamina, float eitr) __state)
         {
             if (!ValheimQoLPlugin.FoodBuffsDontDecay.Value)
             {
@@ -56,6 +83,10 @@ namespace ValheimQoL.Patches
             __instance.SetMaxHealth(hp, flashBar: false);
             __instance.SetMaxStamina(stamina, flashBar: false);
             Traverse.Create(__instance).Method("SetMaxEitr", new object[] { eitr, false }).GetValue();
+
+            __instance.SetHealth(Mathf.Min(__state.health, hp));
+            StaminaRef(__instance) = Mathf.Min(__state.stamina, stamina);
+            EitrRef(__instance) = Mathf.Min(__state.eitr, eitr);
         }
     }
 }

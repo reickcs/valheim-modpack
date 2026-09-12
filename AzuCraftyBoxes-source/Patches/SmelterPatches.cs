@@ -181,59 +181,17 @@ static class SmelterOnAddOrePatch
 
         List<IContainer> nearbyContainers = Boxes.QueryFrame.Get(user, AzuCraftyBoxesPlugin.mRange.Value);
 
-        // When filling all (Shift+E), prioritize conversions where the player has the material
-        // in their inventory. This prevents container items from taking priority over inventory
-        // items just because their conversion appears earlier in the list.
-        IEnumerable<Smelter.ItemConversion> orderedConversions = pullAll
-            ? __instance.m_conversion
-                .OrderByDescending(ic => inventory.HaveItem(ic.m_from.m_itemData.m_shared.m_name) ? 1 : 0)
-            : __instance.m_conversion;
-
-        foreach (Smelter.ItemConversion itemConversion in orderedConversions)
+        // Fill-all (Shift+E) only ever pulls from nearby containers now, never
+        // from the player's own inventory -- on request, so the only way an
+        // item leaves inventory automatically is the explicit push-to-chest
+        // key, keeping the item-lock feature's scope to just that one path.
+        foreach (Smelter.ItemConversion itemConversion in __instance.m_conversion)
         {
             if (ore >= __instance.m_maxOre || (added.Any() && !pullAll))
                 break;
 
             string name = itemConversion.m_from.m_itemData.m_shared.m_name;
             string prefabName = itemConversion.m_from.name;
-            if (pullAll && inventory.HaveItem(name))
-            {
-                ItemDrop.ItemData newItem = inventory.GetItem(name);
-                if (newItem == null) continue;
-                try
-                {
-                    GameObject itemPrefab = ObjectDB.instance.GetItemPrefab(__instance.m_fuelItem.GetPrefabName(itemConversion.m_from.gameObject.name));
-
-                    newItem.m_dropPrefab = itemPrefab;
-                }
-                catch (Exception e)
-                {
-                    // AzuCraftyBoxesPlugin.AzuCraftyBoxesLogger.LogError(e);
-                }
-
-                if (!newItem.m_dropPrefab) continue;
-                string itemPrefabName = Utils.GetPrefabName(newItem.m_dropPrefab);
-                if (!Boxes.CanItemBePulled(Utils.GetPrefabName(__instance.gameObject), itemPrefabName))
-                {
-                    AzuCraftyBoxesPlugin.AzuCraftyBoxesLogger.LogIfReleaseAndDebugEnable($"(SmelterOnAddOrePatch) debug log 1:  Container at {user.transform.position} has {newItem.m_stack} {newItem.m_dropPrefab.name} but it's forbidden by config");
-                    continue;
-                }
-
-                int amount = pullAll ? Mathf.Min(__instance.m_maxOre - ore, inventory.CountItems(name)) : 1;
-                if (amount <= 0) continue;
-                if (!added.ContainsKey(name)) added[name] = 0;
-                added[name] += amount;
-                ore += amount;
-
-                inventory.RemoveItem(itemConversion.m_from.m_itemData.m_shared.m_name, amount);
-
-                for (int i = 0; i < amount; ++i)
-                    ___m_nview.InvokeRPC("RPC_AddOre", newItem.m_dropPrefab.name, false);
-
-                user.Message(MessageHud.MessageType.TopLeft, $"$msg_added {amount} {name}");
-                if (ore >= __instance.m_maxOre)
-                    break;
-            }
 
             if (Boxes.CanItemBePulled(Utils.GetPrefabName(__instance.gameObject), prefabName))
             {
@@ -308,23 +266,9 @@ static class SmelterOnAddFuelPatch
             return false;
         }
 
-        if (pullAll && inventory.HaveItem(__instance.m_fuelItem.m_itemData.m_shared.m_name))
-        {
-            if (Boxes.CanItemBePulled(Utils.GetPrefabName(__instance.gameObject), __instance.m_fuelItem.name))
-            {
-                int amount = (int)Mathf.Min(__instance.m_maxFuel - fuel, inventory.CountItems(__instance.m_fuelItem.m_itemData.m_shared.m_name));
-                inventory.RemoveItem(__instance.m_fuelItem.m_itemData.m_shared.m_name, amount);
-                for (int i = 0; i < amount; ++i)
-                    ___m_nview.InvokeRPC("RPC_AddFuel");
-
-                added += amount;
-                fuel += amount;
-
-                user.Message(MessageHud.MessageType.TopLeft, Localization.instance.Localize("$msg_fireadding", __instance.m_fuelItem.m_itemData.m_shared.m_name));
-
-                __result = false;
-            }
-        }
+        // Fill-all (Shift+E) only ever pulls from nearby containers now, never
+        // from the player's own inventory -- see the matching comment in
+        // SmelterOnAddOrePatch.
 
         List<IContainer> nearbyContainers = Boxes.QueryFrame.Get(__instance, AzuCraftyBoxesPlugin.mRange.Value);
         string fuelPrefabName = __instance.m_fuelItem.name;

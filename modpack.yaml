@@ -40,7 +40,7 @@ game_version_target: 1.0  # Deep North launch
 # PlantEasily-source/PlantEasily.cs, ConfigurationManager-source/
 # ConfigurationManager.cs). A version mismatch anywhere now means
 # exactly one thing: that player doesn't have the current release.
-modpack_version: 9.0.0  # <-> GitHub release v9
+modpack_version: 10.0.0  # <-> GitHub release v10
 
 # The base game (not just mods) is pinned too, deliberately not
 # auto-updating -- see docker-compose.yml's UPDATE_CRON comment and
@@ -94,6 +94,29 @@ mods:
       ConfigSync's own ModRequired/MinimumRequiredVersion already covers
       this job correctly and was already proven working in the same
       connection attempt.
+    custom_additions: >
+      2026-09-12: three additions beyond upstream, all on request --
+      (1) PushMatchingStacksKey (default Y): new IContainer.PushMatchingStacks,
+      reverse of pulling -- pushes inventory items into nearby chests that
+      already contain a matching stack. Reimplements vanilla Inventory.
+      StackAll's own logic by hand (ContainsItemByName + IsItemEquiped +
+      AddItem/RemoveItem, decompile-confirmed) rather than calling StackAll
+      directly, since StackAll has no way to skip an item and its own
+      return-value is only a correct "moved" count when called with
+      message=true (confirmed by decompile -- with message=false the count
+      baseline defaults to 0, so it silently returns the target's ENTIRE
+      item total instead of what was actually moved; hit this live, a
+      single rock reported as "pushed 2088 items"). (2) LockItemKey
+      (default L): hover an item in an open inventory screen and press to
+      toggle-lock it (Util/ItemLock.cs, stored in the item's own
+      m_customData -- moves with the item, same mechanism this repo
+      already used for Player.m_customData's pull-prevention toggle).
+      Locked items are skipped by PushMatchingStacks. (3) Fill-all
+      (Shift+E) on Smelter/Fireplace/Turret/ShieldGenerator no longer
+      pulls from the player's own inventory at all, only nearby
+      containers, on request -- narrows the item-lock feature's scope to
+      just the one push path, since that became the only way an item
+      leaves inventory automatically.
 
 # Server-side character storage: previously Smoothbrain/ServerCharacters,
 # REMOVED because its source has no license on GitHub -- couldn't legally
@@ -207,7 +230,7 @@ custom_plugins:
   # (two separate live copies when BEPINEX=true -- see SETUP.md gotchas),
   # then `docker compose restart`.
   - name: ValheimQoL
-    version: 9.0.0  # tracks modpack_version above, not an independent number as of 2026-09-12
+    version: 10.0.0  # tracks modpack_version above, not an independent number as of 2026-09-12
     purpose: >
       Recreates most of the original Valheim Plus feature set as standalone
       Harmony patches, verified against decompiled assembly_valheim.dll
@@ -257,6 +280,8 @@ custom_plugins:
       - "MapExploreRadiusMultiplier -- NEW in 0.7.0. Postfix on Minimap.Awake, scales Minimap.m_exploreRadius (vanilla 100) -- how much fog-of-war clears per step (deployed at 2x)"
       - "DisableScreenShake -- NEW in 0.7.0. Prefix on GameCamera.AddShake, short-circuits the whole method when enabled. Vanilla already has its own per-client toggle for this (m_cameraShakeEnabled, read from PlatformPrefs \"CameraShake\" in GameCamera.Awake) but that's each player's own Settings menu preference, not server-enforced -- this makes it consistent for everyone regardless of their own settings (deployed: true, default-on for the 1.0 restart, on request)"
       - "GuardianPowerCooldownMatchesDuration -- NEW, added 2026-09-11. Postfix on Player.ActivateGuardianPower, overwrites m_guardianPowerCooldown (vanilla's long real cooldown, read from the equipped power's own StatusEffect.m_cooldown) with that same StatusEffect's m_ttl (its active duration) -- so a boss power is usable again the instant its effect ends. Reads whichever power is currently equipped generically (Player.m_guardianSE, private -- AccessTools.FieldRefAccess), no per-boss name list needed, works for Eikthyr/Elder/Bonemass/Moder/Yagluth/Queen/Fader alike. Default on."
+      - "AutoRepairAllOnInteract -- NEW, added 2026-09-12. Postfix on Player.SetCraftingStation (fires once per genuine interact, same hook AzuCraftyBoxes already uses to cache the station prefab name), repairs every eligible damaged item in inventory in one interact instead of vanilla's one-item-per-Repair-click. InventoryGui.CanRepair's gating logic reimplemented directly (decompile-verified), independent of any InventoryGui instance. Default on."
+      - "WorkbenchRangeMultiplier default raised 2 -> 4, and CraftingStation.m_discoverRange is now set EQUAL to the scaled m_rangeBuild instead of scaled independently from its own smaller vanilla base (10m vs 4m) -- one consistent range for both station discovery and build/craft range, on request. Changed 2026-09-12."
     server_character_storage: >
       NEW in 0.10.0 (ServerProfilePatch.cs). Replaces the removed
       ServerCharacters mod (see the "mods:" section above for why it was

@@ -132,24 +132,10 @@ namespace AzuCraftyBoxes.Patches
             foreach (ItemDrop fuelItem in __instance.m_fuelItems)
             {
                 string sharedName = fuelItem.m_itemData.m_shared.m_name;
-                if (pullAll && inventory.HaveItem(sharedName))
-                {
-                    if (Boxes.CanItemBePulled(Utils.GetPrefabName(__instance.gameObject), fuelItem.name))
-                    {
-                        int amount = (int)Mathf.Min(__instance.m_maxFuel - fuel, inventory.CountItems(sharedName));
-                        inventory.RemoveItem(sharedName, amount);
-                        for (int i = 0; i < amount; ++i)
-                            ___m_nview.InvokeRPC("RPC_AddFuel");
 
-                        added += amount;
-                        fuel += amount;
-
-                        user.Message(MessageHud.MessageType.TopLeft, Localization.instance.Localize("$msg_fireadding", sharedName));
-
-                        __result = false;
-                    }
-                }
-
+                // Fill-all (Shift+E) only ever pulls from nearby containers
+                // now, never from the player's own inventory -- see the
+                // matching comment in SmelterOnAddOrePatch.
                 List<IContainer> nearbyContainers = Boxes.QueryFrame.Get(__instance, AzuCraftyBoxesPlugin.mRange.Value);
                 if (Boxes.CanItemBePulled(Utils.GetPrefabName(__instance.gameObject), fuelItem.name))
                 {

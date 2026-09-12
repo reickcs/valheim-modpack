@@ -16,7 +16,7 @@ namespace AzuCraftyBoxes
     public class AzuCraftyBoxesPlugin : BaseUnityPlugin
     {
         internal const string ModName = "AzuCraftyBoxes";
-        internal const string ModVersion = "9.0.0";
+        internal const string ModVersion = "10.0.0";
         internal const string Author = "Azumatt";
         private const string ModGUID = $"{Author}.{ModName}";
         private static string ConfigFileName = $"{ModGUID}.cfg";
@@ -83,6 +83,8 @@ namespace AzuCraftyBoxes
             //pullItemsKey = config("3 - Keys", "PullItemsKey", new KeyboardShortcut(KeyCode.LeftControl), new ConfigDescription("Holding down this key while crafting or building will pull resources into your inventory instead of building. Use https://docs.unity3d.com/Manual/ConventionalGameInput.html", new AcceptableShortcuts()), false);
             fillAllModKey = config("3 - Keys", "FillAllModKey", new KeyboardShortcut(KeyCode.LeftShift), new ConfigDescription("Modifier key to pull all available fuel or ore when down. Use https://docs.unity3d.com/Manual/ConventionalGameInput.html", new AcceptableShortcuts()), false);
             preventPullingLogic = config("3 - Keys", "Prevent Pulling Logic", new KeyboardShortcut(KeyCode.O, KeyCode.LeftAlt), new ConfigDescription("Key to prevent pulling from nearby containers. This prevents all pulling logic from running, essentially making the mod appear as if it's not installed. This is different from the Mod Enabled option because it allows toggling on the fly (specifically for you as the player)  Use https://docs.unity3d.com/Manual/ConventionalGameInput.html", new AcceptableShortcuts()), false);
+            pushMatchingStacksKey = config("3 - Keys", "PushMatchingStacksKey", new KeyboardShortcut(KeyCode.Y), new ConfigDescription("Key to push inventory items into nearby chests that already contain a matching stack -- the reverse of pulling. Never touches equipped gear or items marked locked with LockItemKey. Use https://docs.unity3d.com/Manual/ConventionalGameInput.html", new AcceptableShortcuts()), false);
+            lockItemKey = config("3 - Keys", "LockItemKey", new KeyboardShortcut(KeyCode.L), new ConfigDescription("Key to toggle-lock the item currently under your mouse in an open inventory screen. Locked items are never auto-moved by PushMatchingStacksKey. The lock is stored on the item itself (moves with it through inventories/chests). Use https://docs.unity3d.com/Manual/ConventionalGameInput.html", new AcceptableShortcuts()), false);
 
             if (!File.Exists(yamlPath))
             {
@@ -183,6 +185,31 @@ namespace AzuCraftyBoxes
 
                 result = isAllowed ? 1 : 0;
                 player.m_customData[PreventPullingLogicKey] = result.ToString();
+            }
+
+            if (pushMatchingStacksKey.Value.IsKeyDown() && player.TakeInput())
+            {
+                List<IContainer> nearby = Boxes.QueryFrame.Get(player, mRange.Value);
+                int total = 0;
+                foreach (IContainer c in nearby)
+                {
+                    total += c.PushMatchingStacks(player.GetInventory());
+                }
+                player.Message(MessageHud.MessageType.Center,
+                    total > 0 ? $"Pushed {total} item{(total == 1 ? "" : "s")} to nearby chests" : "Nothing to push");
+            }
+
+            if (lockItemKey.Value.IsKeyDown() && InventoryGui.IsVisible() && InventoryGui.instance != null && InventoryGui.instance.m_playerGrid != null)
+            {
+                InventoryGrid grid = InventoryGui.instance.m_playerGrid;
+                Vector2i pos = grid.GetElementPos(grid.GetHoveredElement());
+                ItemDrop.ItemData hovered = player.GetInventory().GetItemAt(pos.x, pos.y);
+                if (hovered != null)
+                {
+                    bool locked = ItemLock.ToggleLocked(hovered);
+                    player.Message(MessageHud.MessageType.Center,
+                        locked ? $"Locked {hovered.m_shared.m_name}" : $"Unlocked {hovered.m_shared.m_name}");
+                }
             }
         }
 
@@ -352,6 +379,8 @@ namespace AzuCraftyBoxes
         public static ConfigEntry<KeyboardShortcut> pullItemsKey = null!;
         public static ConfigEntry<KeyboardShortcut> fillAllModKey = null!;
         public static ConfigEntry<KeyboardShortcut> preventPullingLogic = null!;
+        public static ConfigEntry<KeyboardShortcut> pushMatchingStacksKey = null!;
+        public static ConfigEntry<KeyboardShortcut> lockItemKey = null!;
         public static ConfigEntry<Toggle> preventPullingLogicMessage = null!;
         public static ConfigEntry<string> preventPullingStringFormat = null!;
         public static ConfigEntry<Toggle> preventPullingStatusEffectDisplay = null!;
