@@ -28,13 +28,20 @@ static class SearchContainersAsWell
 {
     static void Postfix(Fermenter __instance, Inventory inventory, ref ItemDrop.ItemData __result)
     {
-        if (MiscFunctions.ShouldPrevent())
+        // FindCookableItem only hands us the acting player's Inventory, not the
+        // Player -- resolve the real owner via Player.GetAllPlayers() instead of
+        // assuming Player.m_localPlayer, which on a host-and-play session is only
+        // ever the host's own character, never a remote player's. Comparing against
+        // Player.m_localPlayer.GetInventory() directly used to mean this never
+        // fired at all for anyone but the host.
+        Player? actingPlayer = MiscFunctions.FindPlayerByInventory(inventory);
+
+        if (MiscFunctions.ShouldPrevent(actingPlayer))
         {
             return;
         }
 
-        // If the inventory is equal to the player's inventory but the result is null, then search the containers
-        if (inventory != Player.m_localPlayer.GetInventory() || __result != null) return;
+        if (actingPlayer == null || __result != null) return;
         List<IContainer> nearbyContainers = Boxes.QueryFrame.Get(__instance, AzuCraftyBoxesPlugin.mRange.Value);
 
         foreach (IContainer c in nearbyContainers)

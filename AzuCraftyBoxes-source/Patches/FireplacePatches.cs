@@ -15,7 +15,7 @@ static class FireplaceInteractPatch
         bool pullAll = Input.GetKey(AzuCraftyBoxesPlugin.fillAllModKey.Value.MainKey); // Used to be fillAllModKey.Value.IsPressed(); something is wrong with KeyboardShortcuts always returning false
         Inventory inventory = user.GetInventory();
 
-        if (MiscFunctions.ShouldPrevent() || hold || inventory == null || (inventory.HaveItem(__instance.m_fuelItem.m_itemData.m_shared.m_name) && !pullAll))
+        if (MiscFunctions.ShouldPrevent(user as Player) || hold || inventory == null || (inventory.HaveItem(__instance.m_fuelItem.m_itemData.m_shared.m_name) && !pullAll))
             return true;
 
         if (!___m_nview.HasOwner())

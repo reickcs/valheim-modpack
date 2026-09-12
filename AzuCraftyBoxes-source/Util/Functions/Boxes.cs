@@ -85,7 +85,14 @@ public class Boxes
 
     internal static List<IContainer> GetNearbyContainers<T>(T src, float rangeMeters) where T : Component
     {
-        if (!Player.m_localPlayer || !src) return EmptyIContainers();
+        // Only src's own position is ever used below -- Player.m_localPlayer was
+        // checked here too but nothing in this method actually reads it. On a true
+        // dedicated server (no local player at all, Player.m_localPlayer is always
+        // null there) that guard silently returned an empty list for every single
+        // container query, for every connected player, unconditionally -- meaning
+        // no container-pull feature in this mod ever worked on a real dedicated
+        // server. Found 2026-09-12 alongside the ShouldPrevent player-threading fix.
+        if (!src) return EmptyIContainers();
 
         FlushRegistryIfNeeded();
 

@@ -20,7 +20,7 @@ static class CookingStationOnAddFuelSwitchPatch
     {
         AzuCraftyBoxesPlugin.AzuCraftyBoxesLogger.LogIfReleaseAndDebugEnable($"(CookingStationOnAddFuelSwitchPatch) Looking for fuel");
 
-        if (MiscFunctions.ShouldPrevent() || item != null ||
+        if (MiscFunctions.ShouldPrevent(user as Player) || item != null ||
             __instance.GetFuel() > __instance.m_maxFuel - 1 ||
             (user.GetInventory().HaveItem(__instance.m_fuelItem.m_itemData.m_shared.m_name) && Boxes.CanItemBePulled(Utils.GetPrefabName(__instance.gameObject), __instance.m_fuelItem.name)))
             return true;

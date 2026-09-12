@@ -40,7 +40,7 @@ game_version_target: 1.0  # Deep North launch
 # PlantEasily-source/PlantEasily.cs, ConfigurationManager-source/
 # ConfigurationManager.cs). A version mismatch anywhere now means
 # exactly one thing: that player doesn't have the current release.
-modpack_version: 11.0.0  # <-> GitHub release v11
+modpack_version: 12.0.0  # <-> GitHub release v12
 
 # The base game (not just mods) is pinned too, deliberately not
 # auto-updating -- see docker-compose.yml's UPDATE_CRON comment and
@@ -117,6 +117,38 @@ mods:
       containers, on request -- narrows the item-lock feature's scope to
       just the one push path, since that became the only way an item
       leaves inventory automatically.
+    bug_fixes: >
+      2026-09-12: container-pull permission (ShouldPrevent/AllowPullingLogic,
+      gating crafting-pull, Smelter/Fireplace/Turret/ShieldGenerator/
+      CookingStation/Fermenter fill-all) was hardcoded to check
+      Player.m_localPlayer's own toggle instead of the specific player whose
+      action was being evaluated. Invisible on the real dedicated server (no
+      local player there, so it silently defaulted to "always allowed" for
+      everyone) but on a host-and-play session Player.m_localPlayer is
+      specifically the host's own character -- so every other connected
+      player's container-pulling was actually gated by the HOST's own
+      toggle, not their own. Found diagnosing a friend's "can't pull from
+      containers while crafting" report on a host-and-play session (both
+      client and host were already on matching versions, ruling out the
+      version-mismatch explanation first). MiscFunctions.ShouldPrevent/
+      AllowPullingLogic/ShouldSkipContainer now take an optional Player
+      parameter, threaded through from every functional patch that has the
+      acting player available (PlayerPatches.cs's crafting checks,
+      Smelter/Fireplace/Turret/ShieldGenerator/CookingStation `user`
+      parameters); Fermenter.FindCookableItem only hands vanilla an
+      Inventory, not a Player, so it resolves the real owner via
+      Player.GetAllPlayers() (decompile-confirmed) instead -- it previously
+      required the inventory to literally BE Player.m_localPlayer's own,
+      meaning it never worked for a non-host player at all. Left as
+      local-player-only where that's actually correct: HUD/InventoryGui
+      hover text and the ChestPatches.cs container-registry bookkeeping,
+      both inherently about what the local viewer sees.
+      Separately, Boxes.GetNearbyContainers had an unrelated
+      `!Player.m_localPlayer` guard that did nothing but return an empty
+      container list whenever there's no local player -- meaning on the
+      real dedicated server this mod's container-pull features never
+      returned any containers for anyone, ever. Removed; the guard never
+      used Player.m_localPlayer for anything besides that null check.
 
 # windows-installer/install.ps1 config preservation: the v6 backup/restore
 # logic (added so re-running the installer over an existing setup doesn't
@@ -305,6 +337,7 @@ custom_plugins:
       - "GuardianPowerCooldownMatchesDuration -- NEW, added 2026-09-11. Postfix on Player.ActivateGuardianPower, overwrites m_guardianPowerCooldown (vanilla's long real cooldown, read from the equipped power's own StatusEffect.m_cooldown) with that same StatusEffect's m_ttl (its active duration) -- so a boss power is usable again the instant its effect ends. Reads whichever power is currently equipped generically (Player.m_guardianSE, private -- AccessTools.FieldRefAccess), no per-boss name list needed, works for Eikthyr/Elder/Bonemass/Moder/Yagluth/Queen/Fader alike. Default on."
       - "AutoRepairAllOnInteract -- NEW, added 2026-09-12. Postfix on Player.SetCraftingStation (fires once per genuine interact, same hook AzuCraftyBoxes already uses to cache the station prefab name), repairs every eligible damaged item in inventory in one interact instead of vanilla's one-item-per-Repair-click. InventoryGui.CanRepair's gating logic reimplemented directly (decompile-verified), independent of any InventoryGui instance. Default on."
       - "WorkbenchRangeMultiplier default raised 2 -> 4, and CraftingStation.m_discoverRange is now set EQUAL to the scaled m_rangeBuild instead of scaled independently from its own smaller vanilla base (10m vs 4m) -- one consistent range for both station discovery and build/craft range, on request. Changed 2026-09-12."
+      - "KilnWoodOnly -- NEW, added 2026-09-12. ZNetScene.Awake walk (same one WorkbenchRangeMultiplier etc. use), restricts the Charcoal Kiln's Smelter.m_conversion list to just the entry literally named \"Wood\" if more than one entry is present, so Core Wood/Fine Wood/any other wood-type item can't be fed into it instead of regular Wood. Kiln self-converts wood into Coal via its ORE slot, not a separate fuel slot (m_maxFuel==0, decompile-confirmed). Logs what it found and what it did (KilnWoodOnly: ... in the BepInEx log) since the kiln's actual conversion list is Unity prefab data, not something decompiling the assembly can reveal -- deliberately no-ops instead of stripping the list to empty if no entry is literally named \"Wood\" (an incorrect assumption about vanilla's data), so a wrong guess can't brick the kiln. Default on."
     server_character_storage: >
       NEW in 0.10.0 (ServerProfilePatch.cs). Replaces the removed
       ServerCharacters mod (see the "mods:" section above for why it was

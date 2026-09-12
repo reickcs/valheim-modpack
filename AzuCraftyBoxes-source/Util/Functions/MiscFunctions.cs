@@ -6,9 +6,19 @@ public class MiscFunctions
 {
     private static Type? _mkzDrawerType;
 
-    internal static bool AllowPullingLogic()
+    // player defaults to Player.m_localPlayer for call sites that are genuinely
+    // local-viewer-only (HUD/InventoryGui rendering, the local container registry
+    // bookkeeping in ChestPatches.cs). Every call site that's actually evaluating
+    // a SPECIFIC player's action (crafting, smelter/fireplace/turret interactions)
+    // must pass that player explicitly -- on a host-and-play server the host's own
+    // client is also a live Player, so falling back to Player.m_localPlayer there
+    // silently reads the HOST's own toggle instead of the player actually acting,
+    // breaking pulling for every other connected player whenever the host has it
+    // toggled off. Found 2026-09-12 diagnosing a friend's container-pull-while-
+    // crafting not working on a host-and-play session.
+    internal static bool AllowPullingLogic(Player? player = null)
     {
-        Player? player = Player.m_localPlayer;
+        player ??= Player.m_localPlayer;
         if (player == null) return true; // Default to allowing pulling if no player is found
 
         if (!player.m_customData.TryGetValue(AzuCraftyBoxesPlugin.PreventPullingLogicKey, out string value) || !int.TryParse(value, out int result))
@@ -21,14 +31,28 @@ public class MiscFunctions
         return result == 1;
     }
 
-    internal static bool ShouldPrevent()
+    internal static bool ShouldPrevent(Player? player = null)
     {
-        return AzuCraftyBoxesPlugin.ModEnabled.Value.isOff() || !AllowPullingLogic();
+        return AzuCraftyBoxesPlugin.ModEnabled.Value.isOff() || !AllowPullingLogic(player);
     }
 
-    internal static bool ShouldSkipContainer(Container container)
+    internal static bool ShouldSkipContainer(Container container, Player? player = null)
     {
-        return ShouldPrevent() || container.GetInventory() == null || !container.m_nview.IsValid() || container.m_nview.GetZDO().GetLong("creator".GetStableHashCode()) == 0L;
+        return ShouldPrevent(player) || container.GetInventory() == null || !container.m_nview.IsValid() || container.m_nview.GetZDO().GetLong("creator".GetStableHashCode()) == 0L;
+    }
+
+    // Some vanilla hooks (Fermenter.FindCookableItem) only hand us the acting
+    // player's Inventory, not the Player itself. Player.GetAllPlayers() (decompile-
+    // confirmed, includes every connected player on a host-and-play session, not
+    // just the local one) lets us resolve the real owner instead of assuming
+    // Player.m_localPlayer, which is wrong for anyone but the host.
+    internal static Player? FindPlayerByInventory(Inventory inventory)
+    {
+        foreach (Player p in Player.GetAllPlayers())
+        {
+            if (p.GetInventory() == inventory) return p;
+        }
+        return null;
     }
 
     internal static bool HasAccessToContainer(Container container)

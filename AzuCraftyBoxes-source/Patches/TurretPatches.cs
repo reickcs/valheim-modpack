@@ -10,7 +10,7 @@ static class Turret_UseItem_Patch
     {
         bool pullAll = Input.GetKey(AzuCraftyBoxesPlugin.fillAllModKey.Value.MainKey);
         Inventory inventory = user.GetInventory();
-        if (MiscFunctions.ShouldPrevent() || item != null || user is not Player)
+        if (MiscFunctions.ShouldPrevent(user as Player) || item != null || user is not Player)
             return true;
 
         if (!___m_nview.HasOwner())

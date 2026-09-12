@@ -38,7 +38,7 @@ static class PlayerHaveRequirementsPatch
     {
         try
         {
-            if (MiscFunctions.ShouldPrevent() || __result || discover)
+            if (MiscFunctions.ShouldPrevent(__instance) || __result || discover)
                 return;
 
             List<IContainer> nearbyContainers = Boxes.QueryFrame.Get(__instance, AzuCraftyBoxesPlugin.mRange.Value);
@@ -151,7 +151,7 @@ static class PlayerHaveRequirementsPatchRBoolInt
 {
     static void Postfix(Player __instance, Recipe recipe, bool discover, int qualityLevel, int amount, ref bool __result)
     {
-        if (MiscFunctions.ShouldPrevent())
+        if (MiscFunctions.ShouldPrevent(__instance))
         {
             return;
         }
@@ -269,7 +269,7 @@ static class HaveRequirementsPatch2
     {
         try
         {
-            if (MiscFunctions.ShouldPrevent() || __result || AzuCraftyBoxesPlugin.skip || __instance?.transform?.position == null)
+            if (MiscFunctions.ShouldPrevent(__instance) || __result || AzuCraftyBoxesPlugin.skip || __instance?.transform?.position == null)
                 return;
             if (piece == null)
                 return;
@@ -391,7 +391,7 @@ static class ConsumeResourcesPatch
     {
         try
         {
-            if (MiscFunctions.ShouldPrevent())
+            if (MiscFunctions.ShouldPrevent(__instance))
             {
                 return true;
             }
@@ -414,7 +414,7 @@ static class CheckNearbyForOneIngredientItems
 {
     static void Postfix(Player __instance, Inventory inventory, Recipe recipe, int qualityLevel, ref int amount, ref int extraAmount, int craftMultiplier, ref ItemDrop.ItemData __result)
     {
-        if (MiscFunctions.ShouldPrevent())
+        if (MiscFunctions.ShouldPrevent(__instance))
         {
             return;
         }

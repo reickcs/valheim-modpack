@@ -103,7 +103,7 @@ namespace AzuCraftyBoxes.Patches
         {
             bool pullAll = AzuCraftyBoxesPlugin.fillAllModKey.Value.IsKeyHeld();
             Inventory inventory = user.GetInventory();
-            if (MiscFunctions.ShouldPrevent()
+            if (MiscFunctions.ShouldPrevent(user as Player)
                 || item != null
                 || inventory == null)
                 return true;

@@ -1,3 +1,4 @@
+using System.Linq;
 using HarmonyLib;
 using UnityEngine;
 
@@ -21,6 +22,7 @@ namespace ValheimQoL.Patches
             float prodCapMult = ValheimQoLPlugin.ProductionCapacityMultiplier.Value;
             float yieldMult = ValheimQoLPlugin.GatheringYieldMultiplier.Value;
             bool allowOreThroughPortals = ValheimQoLPlugin.AllowOreThroughPortals.Value;
+            bool kilnWoodOnly = ValheimQoLPlugin.KilnWoodOnly.Value;
 
             foreach (GameObject prefab in __instance.m_prefabs)
             {
@@ -132,6 +134,37 @@ namespace ValheimQoL.Patches
                     if (cookingStation != null && prodSpeedMult != 1f)
                     {
                         cookingStation.m_secPerFuel = Mathf.Max(1, Mathf.RoundToInt(cookingStation.m_secPerFuel * prodSpeedMult));
+                    }
+                }
+
+                if (kilnWoodOnly && prefab.name == "charcoal_kiln")
+                {
+                    Smelter kiln = prefab.GetComponent<Smelter>();
+                    if (kiln != null && kiln.m_conversion.Count > 1)
+                    {
+                        // The Charcoal Kiln converts wood into Coal via its ORE slot
+                        // (m_conversion), not the fuel slot -- decompile-confirmed
+                        // m_maxFuel==0 means it has no fuel slot at all (see the
+                        // prodCapMult comment above). If Core Wood/Fine Wood/any
+                        // other wood-type item is also listed as a valid conversion
+                        // entry, strip everything except the one literally named
+                        // "Wood" (regular wood), on request. Only touches the list
+                        // when a "Wood" entry is actually present, so a wrong
+                        // assumption about that name can't zero out every entry and
+                        // brick the kiln -- it just leaves the list untouched instead.
+                        string found = string.Join(", ", kiln.m_conversion.Select(c => c.m_from != null ? c.m_from.gameObject.name : "<null>"));
+                        var woodOnly = kiln.m_conversion
+                            .Where(c => c.m_from != null && c.m_from.gameObject.name == "Wood")
+                            .ToList();
+                        if (woodOnly.Count > 0)
+                        {
+                            kiln.m_conversion = woodOnly;
+                            ValheimQoLPlugin.Log.LogInfo($"KilnWoodOnly: restricted charcoal_kiln conversion from [{found}] to Wood only.");
+                        }
+                        else
+                        {
+                            ValheimQoLPlugin.Log.LogWarning($"KilnWoodOnly: no entry named \"Wood\" found in charcoal_kiln conversion [{found}] -- left untouched.");
+                        }
                     }
                 }
 

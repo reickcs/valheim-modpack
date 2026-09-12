@@ -161,7 +161,7 @@ static class SmelterOnAddOrePatch
     {
         int ore = __instance.GetQueueSize();
         bool pullAll = AzuCraftyBoxesPlugin.fillAllModKey.Value.IsKeyHeld();
-        if (MiscFunctions.ShouldPrevent() || item != null || ore >= __instance.m_maxOre)
+        if (MiscFunctions.ShouldPrevent(user as Player) || item != null || ore >= __instance.m_maxOre)
             return true;
 
         Inventory inventory = user.GetInventory();
@@ -250,7 +250,7 @@ static class SmelterOnAddFuelPatch
     {
         bool pullAll = AzuCraftyBoxesPlugin.fillAllModKey.Value.IsKeyHeld();
         Inventory inventory = user.GetInventory();
-        if (MiscFunctions.ShouldPrevent() || item != null || inventory == null ||
+        if (MiscFunctions.ShouldPrevent(user as Player) || item != null || inventory == null ||
             ((inventory.HaveItem(__instance.m_fuelItem.m_itemData.m_shared.m_name) && !pullAll) && Boxes.CanItemBePulled(Utils.GetPrefabName(__instance.gameObject), __instance.m_fuelItem.name)))
             return true;
 

@@ -11,7 +11,7 @@ namespace ValheimQoL
     {
         public const string PluginGUID = "richard.valheimqol";
         public const string PluginName = "ValheimQoL";
-        public const string PluginVersion = "11.0.0";
+        public const string PluginVersion = "12.0.0";
 
         // Every ConfigEntry below is wrapped in _configSync.AddConfigEntry, which
         // makes the server the source of truth once a client connects to one --
@@ -58,6 +58,7 @@ namespace ValheimQoL
         // Crafting & Production - Smelter/Fermenter/Beehive/CookingStation
         public static SyncedConfigEntry<float> ProductionSpeedMultiplier;
         public static SyncedConfigEntry<float> ProductionCapacityMultiplier;
+        public static SyncedConfigEntry<bool> KilnWoodOnly;
 
         // Crafting & Production - Fire Sources
         public static SyncedConfigEntry<bool> FireplaceInfiniteFuel;
@@ -196,6 +197,10 @@ namespace ValheimQoL
                 new ConfigDescription(
                     "Multiplier applied to ore/fuel/honey capacity for smelters/kilns/blast furnaces and beehives. 1 = vanilla.",
                     new AcceptableValueRange<float>(0.5f, 5f))));
+
+            KilnWoodOnly = _configSync.AddConfigEntry(Config.Bind(
+                "Crafting - Production Buildings", "KilnWoodOnly", true,
+                "If true, the Charcoal Kiln only ever accepts regular Wood as its ore-slot input (it self-converts wood into Coal, m_maxFuel==0 means it has no separate fuel slot -- confirmed by decompile) -- Core Wood/Fine Wood/any other wood-type entry the kiln's conversion table lists is removed, so it can't be fed those instead. If the kiln's conversion list doesn't contain an entry literally named 'Wood' (an incorrect assumption about vanilla's data), this deliberately no-ops rather than risk stripping every entry and leaving the kiln unusable."));
 
             FireplaceInfiniteFuel = _configSync.AddConfigEntry(Config.Bind(
                 "Crafting - Fire Sources", "InfiniteFuel", true,
