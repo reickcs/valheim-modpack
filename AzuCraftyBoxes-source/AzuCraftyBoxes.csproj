@@ -20,6 +20,23 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Default per-container pull-permission config, extracted to
+         BepInEx/config/Azumatt.AzuCraftyBoxes.yml on first run if that file
+         doesn't exist yet (Plugin.cs's WriteConfigFileFromResource, matched
+         by this default RootNamespace-based manifest name:
+         "AzuCraftyBoxes.Example.yml"). Was never actually embedded before,
+         so this path had never actually been exercised: every existing
+         install's .yml either predates this vendoring or was copied in by
+         hand. A genuinely fresh BepInEx/config wipe on 2026-09-13 finally
+         hit it: the resource lookup threw FileNotFoundException, uncaught,
+         mid-Awake, aborting before harmony.PatchAll() ever ran and silently
+         disabling the entire mod on any truly first-time install (including
+         via the windows installer, which never bundled a default .yml
+         either). -->
+    <EmbeddedResource Include="Example.yml" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Publicized: see ../ConfigurationManager-source/libs for how these were produced. -->
     <Reference Include="assembly_valheim">
       <HintPath>libs/assembly_valheim.dll</HintPath>

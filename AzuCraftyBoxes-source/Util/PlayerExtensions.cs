@@ -34,10 +34,22 @@ public static class PlayerPullingExtensions
     public static void ApplyPullingStatusEffect(this Player player)
     {
         bool allowed = player.IsPullingAllowed();
-        if (!allowed && preventPullingStatusEffectDisplay.Value.isOn())
-            player.m_seman.AddStatusEffect(SE_ContainerPull.SE_ContainerPulling);
-        else
-            player.m_seman.RemoveStatusEffect(SE_ContainerPull.SE_ContainerPulling);
+        try
+        {
+            if (!allowed && preventPullingStatusEffectDisplay.Value.isOn())
+                player.m_seman.AddStatusEffect(SE_ContainerPull.SE_ContainerPulling);
+            else
+                player.m_seman.RemoveStatusEffect(SE_ContainerPull.SE_ContainerPulling);
+        }
+        catch (MissingMethodException)
+        {
+            // SEMan.AddStatusEffect/RemoveStatusEffect's exact overload can differ
+            // between game builds (found 2026-09-13: this dedicated server's own
+            // assembly_valheim.dll lacks the 5-arg overload our client build
+            // compiles against, throwing on every single call -- purely cosmetic
+            // status effect, safe to just skip showing it rather than let this
+            // propagate and potentially cut the rest of a frame's Update() short).
+        }
     }
 
     /// <summary>

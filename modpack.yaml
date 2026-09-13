@@ -40,7 +40,7 @@ game_version_target: 1.0  # Deep North launch
 # PlantEasily-source/PlantEasily.cs, ConfigurationManager-source/
 # ConfigurationManager.cs). A version mismatch anywhere now means
 # exactly one thing: that player doesn't have the current release.
-modpack_version: 12.0.0  # <-> GitHub release v12
+modpack_version: 13.0.0  # <-> GitHub release v13
 
 # The base game (not just mods) is pinned too, deliberately not
 # auto-updating -- see docker-compose.yml's UPDATE_CRON comment and
@@ -58,6 +58,15 @@ pinned_server_buildid: 25253791  # depot 896660, as of 2026-09-11 -- updated via
 # still 36 even on this newest available server-depot build, vs. the client's
 # network version 40 (Valheim l-0.221.12/1.0.12) -- Iron Gate's server depot
 # hasn't caught up yet. Not fixable from our side; re-check periodically.
+# Re-checked 2026-09-13 via steamcmd +app_info_print (read-only, no download)
+# against both depots' "public" branch: client depot 892970 latest is
+# 25253764 (matches what's installed locally already); server depot 896660
+# latest is still 25253791 (matches what's already pinned/installed on the
+# gameserver already). Both sides are already on Steam's newest available
+# build for their own depot -- the mismatch genuinely isn't fixable by
+# updating anything on our end right now. This is why host-and-play (one
+# player's own client acting as the server) is being used instead of the
+# dedicated Docker server for the time being.
 
 mods:
   - namespace: Azumatt
@@ -149,6 +158,48 @@ mods:
       real dedicated server this mod's container-pull features never
       returned any containers for anyone, ever. Removed; the guard never
       used Player.m_localPlayer for anything besides that null check.
+
+      2026-09-13: found a severe one doing a genuinely fresh dedicated-server
+      deployment (wiped BepInEx/config entirely, not just restarted the
+      container) -- Plugin.cs's Awake() writes a default
+      Azumatt.AzuCraftyBoxes.yml from an embedded resource the FIRST time
+      that file doesn't exist, via WriteConfigFileFromResource looking up
+      "AzuCraftyBoxes.Example.yml". That resource had never actually been
+      embedded in this vendored build (no EmbeddedResource entry in the
+      .csproj, no Example.yml file in the source tree at all) -- every
+      existing install's .yml either predates this vendoring or was copied
+      in by hand, so this exact code path had silently never been exercised
+      until now. It throws FileNotFoundException, UNCAUGHT, before
+      harmony.PatchAll() runs later in the same Awake() -- meaning the
+      entire mod silently loads with zero Harmony patches applied whenever
+      this fires. Confirmed this also affects a first-time player: the
+      windows installer never bundled a default .yml either, so ANY
+      genuinely fresh client install (not just this server wipe) would hit
+      the identical crash and end up with a completely non-functional
+      AzuCraftyBoxes with no error surfaced to the player. Fixed two ways:
+      (1) Example.yml is now a real file in the source tree (content taken
+      from the working default already deployed everywhere, the upstream
+      author's own example config) and properly embedded via the .csproj;
+      (2) belt-and-suspenders, the write is now wrapped in try/catch so a
+      future resource problem degrades to an empty ruleset (everything
+      pullable) instead of disabling the whole mod again.
+
+      Also found on the same fresh-deploy pass, once the .yml crash above
+      stopped masking it: SEMan.AddStatusEffect's exact overload (the
+      pull-prevention status-effect icon) differs from what this specific
+      dedicated server's own assembly_valheim.dll has -- a real, confirmed
+      instance of the already-documented server/client version gap (see
+      modpack.yaml's pinned_server_buildid notes), not just a connection-
+      handshake number. Wrapped in try/catch (purely cosmetic status icon,
+      safe to just skip showing it); also removed a redundant unprotected
+      duplicate of the same call in Plugin.cs's Update() -- TogglePulling
+      Allowed() already applies it once via PlayerExtensions.cs. A second,
+      same-class MissingMethodException on Character.Message (used far too
+      widely across this mod to wrap every call site) was also observed on
+      this same dedicated server after that fix -- left as further, concrete
+      confirmation that the server genuinely can't run current mod builds
+      reliably until Iron Gate publishes a server-depot build matching the
+      client's network version; not something wrappable away call-by-call.
 
 # windows-installer/install.ps1 config preservation: the v6 backup/restore
 # logic (added so re-running the installer over an existing setup doesn't
@@ -285,7 +336,7 @@ custom_plugins:
   # (two separate live copies when BEPINEX=true -- see SETUP.md gotchas),
   # then `docker compose restart`.
   - name: ValheimQoL
-    version: 11.0.0  # tracks modpack_version above, not an independent number as of 2026-09-12
+    version: 13.0.0  # tracks modpack_version above, not an independent number as of 2026-09-12
     purpose: >
       Recreates most of the original Valheim Plus feature set as standalone
       Harmony patches, verified against decompiled assembly_valheim.dll

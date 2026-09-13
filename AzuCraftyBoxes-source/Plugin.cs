@@ -16,7 +16,7 @@ namespace AzuCraftyBoxes
     public class AzuCraftyBoxesPlugin : BaseUnityPlugin
     {
         internal const string ModName = "AzuCraftyBoxes";
-        internal const string ModVersion = "12.0.0";
+        internal const string ModVersion = "13.0.0";
         internal const string Author = "Azumatt";
         private const string ModGUID = $"{Author}.{ModName}";
         private static string ConfigFileName = $"{ModGUID}.cfg";
@@ -88,11 +88,24 @@ namespace AzuCraftyBoxes
 
             if (!File.Exists(yamlPath))
             {
-                WriteConfigFileFromResource(yamlPath);
+                // Must never be allowed to throw uncaught here: this runs before
+                // harmony.PatchAll() below, so an uncaught exception at this point
+                // aborts the rest of Awake() and silently disables the entire mod
+                // (no patches ever applied) -- exactly what happened on a genuinely
+                // fresh BepInEx/config wipe 2026-09-13, before Example.yml was
+                // actually embedded as a resource (see the csproj comment).
+                try
+                {
+                    WriteConfigFileFromResource(yamlPath);
+                }
+                catch (Exception ex)
+                {
+                    AzuCraftyBoxesLogger.LogError($"Failed to write default {yamlPath} from embedded resource -- continuing with an empty ruleset (everything pullable) instead of disabling the mod. Error: {ex.Message}");
+                }
             }
 
             CraftyContainerData.ValueChanged += OnValChangedUpdate; // check for file changes
-            CraftyContainerData.AssignLocalValue(File.ReadAllText(yamlPath));
+            CraftyContainerData.AssignLocalValue(File.Exists(yamlPath) ? File.ReadAllText(yamlPath) : string.Empty);
 
             Assembly assembly = Assembly.GetExecutingAssembly();
             harmony.PatchAll(assembly);
@@ -174,14 +187,10 @@ namespace AzuCraftyBoxes
                     );
                 }
 
-                if (!isAllowed && preventPullingStatusEffectDisplay.Value.isOn())
-                {
-                    player.m_seman.AddStatusEffect(SE_ContainerPull.SE_ContainerPulling);
-                }
-                else
-                {
-                    player.m_seman.RemoveStatusEffect(SE_ContainerPull.SE_ContainerPulling);
-                }
+                // TogglePullingAllowed() above already applied the status effect via
+                // ApplyPullingStatusEffect() -- this used to duplicate that exact same
+                // AddStatusEffect/RemoveStatusEffect call a second time, unprotected
+                // (see PlayerExtensions.cs's try/catch around the real one).
 
                 result = isAllowed ? 1 : 0;
                 player.m_customData[PreventPullingLogicKey] = result.ToString();
